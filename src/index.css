@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Tus estilos globales si los necesitas */
+body {
+  margin: 0;
+  background-color: #f8fafc; /* slate-50 */
+}
