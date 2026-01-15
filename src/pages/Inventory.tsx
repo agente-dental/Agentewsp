@@ -8,9 +8,9 @@ import {
   Trash2,
   Edit3,
   X,
-  Package, // Usado ahora en los labels
-  Tag, // Usado ahora en los labels
-  Database, // Usado ahora en los labels
+  Package,
+  Tag,
+  Database,
 } from "lucide-react";
 
 interface Producto {
@@ -108,9 +108,12 @@ export const Inventory = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-w-50">
-          <p className="text-slate-500 text-sm font-medium">Total Productos</p>
+      {/* HEADER DINÁMICO */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 w-full sm:w-auto flex-1">
+          <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">
+            Total Productos
+          </p>
           <p className="text-3xl font-bold text-slate-800">{products.length}</p>
         </div>
 
@@ -122,7 +125,7 @@ export const Inventory = () => {
               setFormData(initialFormState);
             }
           }}
-          className={`flex items-center gap-2 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
+          className={`w-full sm:w-auto flex items-center justify-center gap-2 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-lg ${
             showForm ? "bg-slate-500" : "bg-blue-600 shadow-blue-200"
           }`}
         >
@@ -138,8 +141,9 @@ export const Inventory = () => {
         </button>
       </div>
 
+      {/* FORMULARIO RESPONSIVO */}
       {showForm && (
-        <div className="bg-white p-8 rounded-3xl shadow-xl border border-blue-100 animate-in fade-in zoom-in duration-200">
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl border border-blue-100 animate-in fade-in zoom-in duration-200">
           <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
             {editingId ? (
               <Edit3 className="text-orange-500" />
@@ -150,7 +154,7 @@ export const Inventory = () => {
           </h3>
           <form
             onSubmit={handleSubmit}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-3 gap-5"
           >
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600 px-1">
@@ -267,14 +271,10 @@ export const Inventory = () => {
                 }
               />
             </div>
-            <div className="md:col-span-3 flex justify-end">
+            <div className="md:col-span-3 flex justify-end pt-2">
               <button
                 type="submit"
-                className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-colors ${
-                  editingId
-                    ? "bg-orange-500 hover:bg-orange-600"
-                    : "bg-slate-900 hover:bg-black"
-                }`}
+                className="w-full md:w-auto px-8 py-4 rounded-xl font-bold text-white bg-slate-900 hover:bg-black transition-colors shadow-lg"
               >
                 {editingId ? "Actualizar Cambios" : "Guardar Producto"}
               </button>
@@ -283,84 +283,144 @@ export const Inventory = () => {
         </div>
       )}
 
+      {/* LISTADO DE PRODUCTOS ADAPTABLE */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         {loading ? (
           <div className="p-20 flex justify-center">
             <Loader2 className="animate-spin text-slate-300" />
           </div>
         ) : (
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="p-5 text-slate-600 font-bold uppercase text-xs">
-                  SKU / Producto
-                </th>
-                <th className="p-5 text-slate-600 font-bold uppercase text-xs text-center">
-                  Stock
-                </th>
-                <th className="p-5 text-slate-600 font-bold uppercase text-xs">
-                  Precio
-                </th>
-                <th className="p-5 text-slate-600 font-bold uppercase text-xs text-right">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
+          <>
+            {/* VISTA MÓVIL: CARDS (Se oculta en tablets/PC) */}
+            <div className="grid grid-cols-1 md:hidden divide-y divide-slate-50">
               {products.map((p) => (
-                <tr
-                  key={p.id}
-                  className="hover:bg-slate-50/50 transition-colors"
-                >
-                  <td className="p-5">
-                    <p className="font-mono text-[10px] text-blue-600 font-bold">
-                      {p.sku}
-                    </p>
-                    <p className="font-bold text-slate-800">{p.nombre}</p>
-                    <span className="text-[10px] uppercase font-black text-slate-400">
-                      {p.categoria}
+                <div key={p.id} className="p-5 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">
+                        {p.sku}
+                      </span>
+                      <h4 className="font-bold text-slate-800 leading-tight">
+                        {p.nombre}
+                      </h4>
+                      <span className="text-[10px] font-black text-slate-400 uppercase">
+                        {p.categoria}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900">
+                        ${p.precio_venta.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <span
+                      className={`flex-1 text-center py-2 rounded-lg text-[10px] font-bold ${
+                        p.stock_local > 5
+                          ? "bg-green-50 text-green-700"
+                          : "bg-orange-50 text-orange-700"
+                      }`}
+                    >
+                      Local: {p.stock_local}
                     </span>
-                  </td>
-                  <td className="p-5 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
-                          p.stock_local > 5
-                            ? "bg-green-100 text-green-700"
-                            : "bg-orange-100 text-orange-700"
-                        }`}
-                      >
-                        {p.stock_local <= 5 && <AlertTriangle size={12} />}{" "}
-                        Local: {p.stock_local}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Mayorista: {p.stock_mayorista}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-5 font-bold text-slate-800">
-                    ${p.precio_venta.toLocaleString()}
-                  </td>
-                  <td className="p-5 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(p)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Edit3 size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(p.id!, p.nombre)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                    <span className="flex-1 text-center py-2 rounded-lg bg-slate-50 text-slate-600 text-[10px] font-bold">
+                      May: {p.stock_mayorista}
+                    </span>
+                  </div>
+                  <div className="flex justify-end gap-4 pt-1">
+                    <button
+                      onClick={() => handleEdit(p)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Edit3 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p.id!, p.nombre)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* VISTA DESKTOP: TABLA (Se oculta en celulares) */}
+            <div className="hidden md:block">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="p-5 text-slate-600 font-bold uppercase text-xs">
+                      SKU / Producto
+                    </th>
+                    <th className="p-5 text-slate-600 font-bold uppercase text-xs text-center">
+                      Stock
+                    </th>
+                    <th className="p-5 text-slate-600 font-bold uppercase text-xs">
+                      Precio
+                    </th>
+                    <th className="p-5 text-slate-600 font-bold uppercase text-xs text-right">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {products.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="p-5">
+                        <p className="font-mono text-[10px] text-blue-600 font-bold">
+                          {p.sku}
+                        </p>
+                        <p className="font-bold text-slate-800">{p.nombre}</p>
+                        <span className="text-[10px] uppercase font-black text-slate-400">
+                          {p.categoria}
+                        </span>
+                      </td>
+                      <td className="p-5 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                              p.stock_local > 5
+                                ? "bg-green-100 text-green-700"
+                                : "bg-orange-100 text-orange-700"
+                            }`}
+                          >
+                            {p.stock_local <= 5 && <AlertTriangle size={12} />}{" "}
+                            Local: {p.stock_local}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Mayorista: {p.stock_mayorista}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-5 font-bold text-slate-800">
+                        ${p.precio_venta.toLocaleString()}
+                      </td>
+                      <td className="p-5 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(p)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Edit3 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(p.id!, p.nombre)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
