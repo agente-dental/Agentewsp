@@ -1,15 +1,14 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { Inventory } from "./pages/Inventory";
+import { ChatIA } from "./components/ChatIA"; // Asegúrate de que el archivo sea ChatIA.tsx
 
 function App() {
   return (
     <Router>
-      {/* Contenedor principal sin límites de ancho */}
       <div className="flex w-full min-h-screen bg-slate-50">
         <Sidebar />
 
-        {/* El contenido principal crece para ocupar el resto del espacio */}
         <main className="flex-1 ml-72 p-8 lg:p-12">
           <header className="max-w-[1600px] mx-auto mb-10">
             <div className="flex justify-between items-end">
@@ -46,13 +45,16 @@ function App() {
                 path="/chats"
                 element={
                   <div className="bg-white p-20 rounded-3xl shadow-sm text-center text-slate-400 border-2 border-dashed border-slate-100">
-                    Aquí se mostrarán las conversaciones del Agente Groq
+                    Aquí se mostrarán las métricas de conversaciones de Wasapi
                   </div>
                 }
               />
             </Routes>
           </div>
         </main>
+
+        {/* El componente ahora cargará correctamente si el nombre del archivo coincide */}
+        <ChatIA />
       </div>
     </Router>
   );

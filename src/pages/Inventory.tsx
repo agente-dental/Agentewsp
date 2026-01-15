@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Package, Plus, Loader2, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  Package,
+  Tag,
+  Database,
+  ClipboardList,
+  AlertTriangle,
+  Trash2,
+  Edit3,
+  X,
+} from "lucide-react";
 
 interface Producto {
   id?: string;
@@ -17,7 +28,9 @@ export const Inventory = () => {
   const [products, setProducts] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<Producto>({
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const initialFormState: Producto = {
     sku: "",
     nombre: "",
     categoria: "equipamiento",
@@ -25,9 +38,10 @@ export const Inventory = () => {
     stock_local: 0,
     stock_mayorista: 0,
     descripcion_tecnica: "",
-  });
+  };
 
-  // 1. Cargar productos de Supabase
+  const [formData, setFormData] = useState<Producto>(initialFormState);
+
   const fetchProducts = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -43,48 +57,79 @@ export const Inventory = () => {
     fetchProducts();
   }, []);
 
-  // 2. Manejar envío del formulario (Solo Humano)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from("productos").insert([formData]);
+    if (
+      formData.stock_local < 0 ||
+      formData.stock_mayorista < 0 ||
+      formData.precio_venta < 0
+    ) {
+      alert("Valores negativos no permitidos");
+      return;
+    }
 
-    if (!error) {
-      setFormData({
-        sku: "",
-        nombre: "",
-        categoria: "equipamiento",
-        precio_venta: 0,
-        stock_local: 0,
-        stock_mayorista: 0,
-        descripcion_tecnica: "",
-      });
-      setShowForm(false);
-      fetchProducts();
+    if (editingId) {
+      // Lógica de Actualización
+      const { error } = await supabase
+        .from("productos")
+        .update(formData)
+        .eq("id", editingId);
+      if (!error) alert("Producto actualizado con éxito");
     } else {
-      alert("Error al cargar producto: " + error.message);
+      // Lógica de Inserción
+      const { error } = await supabase.from("productos").insert([formData]);
+      if (!error) alert("Producto guardado con éxito");
+    }
+
+    setFormData(initialFormState);
+    setEditingId(null);
+    setShowForm(false);
+    fetchProducts();
+  };
+
+  const handleEdit = (p: Producto) => {
+    setFormData(p);
+    setEditingId(p.id || null);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDelete = async (id: string, nombre: string) => {
+    if (
+      confirm(
+        `¿Estás seguro de eliminar "${nombre}"? Esta acción no se puede deshacer.`
+      )
+    ) {
+      const { error } = await supabase.from("productos").delete().eq("id", id);
+      if (!error) fetchProducts();
+      else alert("Error al eliminar: " + error.message);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header con Botón de Acción */}
       <div className="flex justify-between items-center">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-w-[200px]">
-            <p className="text-slate-500 text-sm font-medium">
-              Total Productos
-            </p>
-            <p className="text-3xl font-bold text-slate-800">
-              {products.length}
-            </p>
-          </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-w-50">
+          <p className="text-slate-500 text-sm font-medium">Total Productos</p>
+          <p className="text-3xl font-bold text-slate-800">{products.length}</p>
         </div>
+
         <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-200"
+          onClick={() => {
+            setShowForm(!showForm);
+            if (showForm) {
+              setEditingId(null);
+              setFormData(initialFormState);
+            }
+          }}
+          className={`flex items-center gap-2 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
+            showForm ? "bg-slate-500" : "bg-blue-600 shadow-blue-200"
+          }`}
         >
           {showForm ? (
-            "Cerrar Formulario"
+            <>
+              <X size={20} /> Cancelar
+            </>
           ) : (
             <>
               <Plus size={20} /> Añadir Producto
@@ -93,11 +138,15 @@ export const Inventory = () => {
         </button>
       </div>
 
-      {/* Formulario de Carga (Visibilidad Controlada) */}
       {showForm && (
         <div className="bg-white p-8 rounded-3xl shadow-xl border border-blue-100 animate-in fade-in zoom-in duration-200">
           <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <Plus className="text-blue-600" /> Registro de Nuevo Stock
+            {editingId ? (
+              <Edit3 className="text-orange-500" />
+            ) : (
+              <ClipboardList className="text-blue-600" />
+            )}
+            {editingId ? "Editando Producto" : "Registro de Nuevo Stock"}
           </h3>
           <form
             onSubmit={handleSubmit}
@@ -105,13 +154,12 @@ export const Inventory = () => {
           >
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600 px-1">
-                SKU / Código
+                SKU
               </label>
               <input
                 required
                 type="text"
-                placeholder="Ej: SIL-001"
-                className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.sku}
                 onChange={(e) =>
                   setFormData({ ...formData, sku: e.target.value })
@@ -120,13 +168,12 @@ export const Inventory = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600 px-1">
-                Nombre del Producto
+                Nombre
               </label>
               <input
                 required
                 type="text"
-                placeholder="Ej: Scanner Intraoral A7"
-                className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.nombre}
                 onChange={(e) =>
                   setFormData({ ...formData, nombre: e.target.value })
@@ -135,10 +182,10 @@ export const Inventory = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600 px-1">
-                Pilar / Categoría
+                Pilar
               </label>
               <select
-                className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.categoria}
                 onChange={(e) =>
                   setFormData({ ...formData, categoria: e.target.value as any })
@@ -151,12 +198,13 @@ export const Inventory = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-600 px-1">
-                Precio Venta ($)
+                Precio ($)
               </label>
               <input
                 required
                 type="number"
-                className="w-full p-3 rounded-xl border border-slate-200"
+                min="0"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.precio_venta}
                 onChange={(e) =>
                   setFormData({
@@ -167,13 +215,14 @@ export const Inventory = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 px-1">
+              <label className="text-sm font-bold text-slate-600 px-1 text-green-600">
                 Stock Local
               </label>
               <input
                 required
                 type="number"
-                className="w-full p-3 rounded-xl border border-slate-200"
+                min="0"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.stock_local}
                 onChange={(e) =>
                   setFormData({
@@ -184,13 +233,14 @@ export const Inventory = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 px-1">
+              <label className="text-sm font-bold text-slate-600 px-1 text-blue-600">
                 Stock Mayorista
               </label>
               <input
                 required
                 type="number"
-                className="w-full p-3 rounded-xl border border-slate-200"
+                min="0"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.stock_mayorista}
                 onChange={(e) =>
                   setFormData({
@@ -202,13 +252,12 @@ export const Inventory = () => {
             </div>
             <div className="md:col-span-3 space-y-2">
               <label className="text-sm font-bold text-slate-600 px-1">
-                Descripción Técnica (Para el Agente Groq)
+                Descripción Técnica
               </label>
               <textarea
                 required
                 rows={3}
-                placeholder="Detalla especificaciones que el agente usará para vender..."
-                className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.descripcion_tecnica}
                 onChange={(e) =>
                   setFormData({
@@ -221,39 +270,39 @@ export const Inventory = () => {
             <div className="md:col-span-3 flex justify-end">
               <button
                 type="submit"
-                className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-colors"
+                className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-colors ${
+                  editingId
+                    ? "bg-orange-500 hover:bg-orange-600"
+                    : "bg-slate-900 hover:bg-black"
+                }`}
               >
-                Guardar en Base de Datos
+                {editingId ? "Actualizar Cambios" : "Guardar Producto"}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Tabla de Inventario Real-time */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         {loading ? (
-          <div className="p-20 flex justify-center text-slate-400">
-            <Loader2 className="animate-spin" />
+          <div className="p-20 flex justify-center">
+            <Loader2 className="animate-spin text-slate-300" />
           </div>
         ) : (
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 <th className="p-5 text-slate-600 font-bold uppercase text-xs">
-                  SKU
-                </th>
-                <th className="p-5 text-slate-600 font-bold uppercase text-xs">
-                  Producto / Pilar
+                  SKU / Producto
                 </th>
                 <th className="p-5 text-slate-600 font-bold uppercase text-xs text-center">
-                  Stock Local
-                </th>
-                <th className="p-5 text-slate-600 font-bold uppercase text-xs text-center">
-                  Stock Mayorista
+                  Stock
                 </th>
                 <th className="p-5 text-slate-600 font-bold uppercase text-xs">
                   Precio
+                </th>
+                <th className="p-5 text-slate-600 font-bold uppercase text-xs text-right">
+                  Acciones
                 </th>
               </tr>
             </thead>
@@ -261,33 +310,52 @@ export const Inventory = () => {
               {products.map((p) => (
                 <tr
                   key={p.id}
-                  className="hover:bg-slate-50/50 transition-colors group"
+                  className="hover:bg-slate-50/50 transition-colors"
                 >
-                  <td className="p-5 font-mono text-xs text-blue-600 font-bold">
-                    {p.sku}
-                  </td>
                   <td className="p-5">
+                    <p className="font-mono text-[10px] text-blue-600 font-bold">
+                      {p.sku}
+                    </p>
                     <p className="font-bold text-slate-800">{p.nombre}</p>
-                    <span className="text-[10px] uppercase font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded">
+                    <span className="text-[10px] uppercase font-black text-slate-400">
                       {p.categoria}
                     </span>
                   </td>
-                  <td className="p-5 text-center">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        p.stock_local > 0
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {p.stock_local} uds
-                    </span>
-                  </td>
-                  <td className="p-5 text-center text-slate-500 font-medium">
-                    {p.stock_mayorista} uds
+                  <td className="p-5">
+                    <div className="flex flex-col items-center gap-1">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                          p.stock_local > 5
+                            ? "bg-green-100 text-green-700"
+                            : "bg-orange-100 text-orange-700"
+                        }`}
+                      >
+                        {p.stock_local <= 5 && <AlertTriangle size={12} />}{" "}
+                        Local: {p.stock_local}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Mayorista: {p.stock_mayorista}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-5 font-bold text-slate-800">
                     ${p.precio_venta.toLocaleString()}
+                  </td>
+                  <td className="p-5 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(p)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Edit3 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(p.id!, p.nombre)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
