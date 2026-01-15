@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { chatWithAgente } from "../lib/groq";
-import { MessageSquare, Send, X, Bot } from "lucide-react";
+import { MessageSquare, Send, X, Bot } from "lucide-react"; // Verifica que usas Bot abajo
 
 export const ChatIA = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,11 +25,11 @@ export const ChatIA = () => {
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {isOpen ? (
-        <div className="bg-white w-96 h-[500px] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
+        <div className="bg-white w-96 h-[500px] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
           <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Bot size={20} className="text-blue-400" />
-              <span className="font-bold text-sm">Auditoría de Agente IA</span>
+              <span className="font-bold text-sm">Auditoría Agente IA</span>
             </div>
             <button onClick={() => setIsOpen(false)}>
               <X size={20} />
@@ -62,7 +62,7 @@ export const ChatIA = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Pregunta al agente sobre el stock..."
+              placeholder="Pregunta al agente..."
               className="flex-1 text-sm outline-none"
             />
             <button
@@ -76,7 +76,7 @@ export const ChatIA = () => {
       ) : (
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-slate-900 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform flex items-center gap-2"
+          className="bg-slate-900 text-white p-4 rounded-full shadow-xl flex items-center gap-2"
         >
           <MessageSquare />
           <span className="font-bold text-sm px-1">Hablar con Agente</span>
