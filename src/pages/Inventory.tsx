@@ -3,14 +3,14 @@ import { supabase } from "../lib/supabase";
 import {
   Plus,
   Loader2,
-  Package,
-  Tag,
-  Database,
   ClipboardList,
   AlertTriangle,
   Trash2,
   Edit3,
   X,
+  Package, // Usado ahora en los labels
+  Tag, // Usado ahora en los labels
+  Database, // Usado ahora en los labels
 } from "lucide-react";
 
 interface Producto {
@@ -49,7 +49,11 @@ export const Inventory = () => {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setProducts(data);
+    if (error) {
+      console.error("Error fetching products:", error.message);
+    } else if (data) {
+      setProducts(data);
+    }
     setLoading(false);
   };
 
@@ -69,16 +73,16 @@ export const Inventory = () => {
     }
 
     if (editingId) {
-      // Lógica de Actualización
       const { error } = await supabase
         .from("productos")
         .update(formData)
         .eq("id", editingId);
-      if (!error) alert("Producto actualizado con éxito");
+      if (error) console.error("Update error:", error.message);
+      else alert("Producto actualizado con éxito");
     } else {
-      // Lógica de Inserción
       const { error } = await supabase.from("productos").insert([formData]);
-      if (!error) alert("Producto guardado con éxito");
+      if (error) console.error("Insert error:", error.message);
+      else alert("Producto guardado con éxito");
     }
 
     setFormData(initialFormState);
@@ -95,14 +99,10 @@ export const Inventory = () => {
   };
 
   const handleDelete = async (id: string, nombre: string) => {
-    if (
-      confirm(
-        `¿Estás seguro de eliminar "${nombre}"? Esta acción no se puede deshacer.`
-      )
-    ) {
+    if (confirm(`¿Estás seguro de eliminar "${nombre}"?`)) {
       const { error } = await supabase.from("productos").delete().eq("id", id);
       if (!error) fetchProducts();
-      else alert("Error al eliminar: " + error.message);
+      else console.error("Delete error:", error.message);
     }
   };
 
@@ -197,8 +197,8 @@ export const Inventory = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 px-1">
-                Precio ($)
+              <label className="text-sm font-bold text-slate-600 px-1 flex items-center gap-1">
+                <Tag size={14} /> Precio ($)
               </label>
               <input
                 required
@@ -215,8 +215,8 @@ export const Inventory = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 px-1 text-green-600">
-                Stock Local
+              <label className="text-sm font-bold text-slate-600 px-1 text-green-600 flex items-center gap-1">
+                <Package size={14} /> Stock Local
               </label>
               <input
                 required
@@ -233,8 +233,8 @@ export const Inventory = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600 px-1 text-blue-600">
-                Stock Mayorista
+              <label className="text-sm font-bold text-slate-600 px-1 text-blue-600 flex items-center gap-1">
+                <Database size={14} /> Stock Mayorista
               </label>
               <input
                 required
@@ -321,7 +321,7 @@ export const Inventory = () => {
                       {p.categoria}
                     </span>
                   </td>
-                  <td className="p-5">
+                  <td className="p-5 text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
