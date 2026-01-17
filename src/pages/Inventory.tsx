@@ -13,7 +13,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configuración robusta del worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 
 interface ArchivoAdjunto {
   id?: string;
@@ -63,7 +64,6 @@ export const Inventory = () => {
     fetchProducts();
   }, []);
 
-  // FUNCIÓN CORREGIDA: Borrado de archivo de Storage y Base de Datos
   const deleteFile = async (fileId: string, fileUrl: string) => {
     if (
       !confirm(
@@ -71,33 +71,18 @@ export const Inventory = () => {
       )
     )
       return;
-
     try {
-      // 1. Obtener el nombre real del archivo desde la URL
       const urlParts = fileUrl.split("/");
       const fileName = urlParts[urlParts.length - 1];
-
-      // 2. Borrar del Storage
-      const { error: storageError } = await supabase.storage
-        .from("catalogos")
-        .remove([fileName]);
-
-      if (storageError) console.warn("Aviso Storage:", storageError.message);
-
-      // 3. Borrar de la tabla catalogos_archivos
+      await supabase.storage.from("catalogos").remove([fileName]);
       const { error: dbError } = await supabase
         .from("catalogos_archivos")
         .delete()
         .eq("id", fileId);
-
       if (dbError) throw dbError;
-
-      // 4. Refrescar datos
       await fetchProducts();
-      alert("Archivo eliminado correctamente");
     } catch (err: any) {
-      console.error("Error al borrar:", err);
-      alert("No se pudo borrar: " + err.message);
+      alert("Error al borrar: " + err.message);
     }
   };
 
@@ -109,20 +94,33 @@ export const Inventory = () => {
       const file = e.target.files[0];
       let extractedText = "";
 
+      // Extracción de PDF protegida
       if (file.type === "application/pdf") {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = "";
-        const pagesToRead = Math.min(pdf.numPages, 5);
-        for (let i = 1; i <= pagesToRead; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          fullText +=
-            content.items.map((item: any) => item.str).join(" ") + " ";
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+          const pdf = await loadingTask.promise;
+          let fullText = "";
+          const pagesToRead = Math.min(pdf.numPages, 3); // Bajamos a 3 para evitar bloqueos
+          for (let i = 1; i <= pagesToRead; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText +=
+              content.items.map((item: any) => (item as any).str).join(" ") +
+              " ";
+          }
+          extractedText = fullText;
+        } catch (pdfError) {
+          console.error(
+            "Error leyendo PDF (Worker), pero subiremos el archivo igual:",
+            pdfError,
+          );
+          extractedText =
+            "Error en lectura automática. Por favor, revisa el PDF manualmente.";
         }
-        extractedText = fullText;
       }
 
+      // Proceso de subida estándar
       const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`;
       const { error: uploadError } = await supabase.storage
         .from("catalogos")
@@ -143,13 +141,15 @@ export const Inventory = () => {
       ]);
 
       fetchProducts();
+      alert("Subida exitosa");
     } catch (err: any) {
-      alert("Error: " + err.message);
+      alert("Error crítico en subida: " + err.message);
     } finally {
       setUploading(false);
     }
   };
 
+  // ... Resto de funciones (handleSubmit, handleEdit) iguales a tu versión anterior
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
@@ -159,12 +159,9 @@ export const Inventory = () => {
       stock: formData.stock === "" ? 0 : Number(formData.stock),
       descripcion_tecnica: formData.descripcion_tecnica,
     };
-
-    if (editingId) {
+    if (editingId)
       await supabase.from("productos").update(payload).eq("id", editingId);
-    } else {
-      await supabase.from("productos").insert([payload]);
-    }
+    else await supabase.from("productos").insert([payload]);
     setFormData(initialFormState);
     setEditingId(null);
     setShowForm(false);
@@ -189,14 +186,14 @@ export const Inventory = () => {
             setEditingId(null);
             setFormData(initialFormState);
           }}
-          className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs hover:bg-blue-700 transition-all"
+          className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs hover:bg-blue-700"
         >
           Nuevo Registro
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white p-8 rounded-[32px] shadow-xl border border-blue-50 animate-in fade-in zoom-in duration-200">
+        <div className="bg-white p-8 rounded-[32px] shadow-xl border border-blue-50">
           <form
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -247,7 +244,7 @@ export const Inventory = () => {
             />
             <textarea
               className="md:col-span-2 p-4 rounded-xl border min-h-[100px]"
-              placeholder="Instrucciones técnicas para la IA..."
+              placeholder="Instrucciones técnicas..."
               value={formData.descripcion_tecnica}
               onChange={(e) =>
                 setFormData({
@@ -260,7 +257,7 @@ export const Inventory = () => {
             {editingId && (
               <div className="md:col-span-2 bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
                 <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">
-                  Memoria Técnica del Agente
+                  Documentos del Producto
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   {products
@@ -268,7 +265,7 @@ export const Inventory = () => {
                     ?.catalogos_archivos?.map((file) => (
                       <div
                         key={file.id}
-                        className="bg-white p-3 rounded-xl border flex justify-between items-center group"
+                        className="bg-white p-3 rounded-xl border flex justify-between items-center"
                       >
                         <div className="flex items-center gap-2 truncate">
                           {file.url.includes(".pdf") ? (
@@ -283,7 +280,7 @@ export const Inventory = () => {
                         <button
                           type="button"
                           onClick={() => deleteFile(file.id!, file.url)}
-                          className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                          className="p-2 text-slate-300 hover:text-red-500"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -304,7 +301,7 @@ export const Inventory = () => {
                       <Paperclip size={18} />
                     )}
                     {uploading
-                      ? "Procesando manual..."
+                      ? "Analizando y subiendo..."
                       : "Añadir Archivo Técnico"}
                   </div>
                 </div>
@@ -312,7 +309,7 @@ export const Inventory = () => {
             )}
             <button
               type="submit"
-              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.01] transition-all"
+              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest"
             >
               Guardar Producto
             </button>
@@ -320,11 +317,12 @@ export const Inventory = () => {
         </div>
       )}
 
+      {/* Lista de productos... */}
       <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b">
             <tr>
-              <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+              <th className="p-6 text-[10px] font-black uppercase text-slate-400">
                 Equipo Dental
               </th>
               <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">
@@ -336,25 +334,20 @@ export const Inventory = () => {
             {products.map((p) => (
               <tr
                 key={p.id}
-                className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+                className="border-b border-slate-50 hover:bg-slate-50/50"
               >
                 <td className="p-6">
                   <p className="font-black text-slate-800 text-lg">
                     {p.nombre}
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">
-                      {p.categoria}
-                    </span>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                      {p.catalogos_archivos?.length || 0} archivos en memoria
-                    </span>
-                  </div>
+                  <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">
+                    {p.catalogos_archivos?.length || 0} archivos
+                  </span>
                 </td>
                 <td className="p-6 text-right">
                   <button
                     onClick={() => handleEdit(p)}
-                    className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
+                    className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-2xl"
                   >
                     <Edit3 size={20} />
                   </button>
