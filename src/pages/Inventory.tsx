@@ -13,7 +13,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-// Configuración robusta del worker
+// Configuración robusta del worker para procesamiento de PDFs extensos
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 
 interface ArchivoAdjunto {
@@ -94,14 +94,16 @@ export const Inventory = () => {
       const file = e.target.files[0];
       let extractedText = "";
 
-      // Extracción de PDF protegida
       if (file.type === "application/pdf") {
         try {
           const arrayBuffer = await file.arrayBuffer();
           const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
           const pdf = await loadingTask.promise;
           let fullText = "";
-          const pagesToRead = Math.min(pdf.numPages, 3); // Bajamos a 3 para evitar bloqueos
+
+          // CAPACIDAD AMPLIADA: Leemos hasta 40 páginas para catálogos completos
+          const pagesToRead = Math.min(pdf.numPages, 40);
+
           for (let i = 1; i <= pagesToRead; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
@@ -111,16 +113,11 @@ export const Inventory = () => {
           }
           extractedText = fullText;
         } catch (pdfError) {
-          console.error(
-            "Error leyendo PDF (Worker), pero subiremos el archivo igual:",
-            pdfError,
-          );
-          extractedText =
-            "Error en lectura automática. Por favor, revisa el PDF manualmente.";
+          console.error("Error en lectura de PDF:", pdfError);
+          extractedText = "Error en lectura automática parcial.";
         }
       }
 
-      // Proceso de subida estándar
       const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`;
       const { error: uploadError } = await supabase.storage
         .from("catalogos")
@@ -141,7 +138,7 @@ export const Inventory = () => {
       ]);
 
       fetchProducts();
-      alert("Subida exitosa");
+      alert("Subida y análisis completado.");
     } catch (err: any) {
       alert("Error crítico en subida: " + err.message);
     } finally {
@@ -149,7 +146,6 @@ export const Inventory = () => {
     }
   };
 
-  // ... Resto de funciones (handleSubmit, handleEdit) iguales a tu versión anterior
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
@@ -162,6 +158,7 @@ export const Inventory = () => {
     if (editingId)
       await supabase.from("productos").update(payload).eq("id", editingId);
     else await supabase.from("productos").insert([payload]);
+
     setFormData(initialFormState);
     setEditingId(null);
     setShowForm(false);
@@ -244,7 +241,7 @@ export const Inventory = () => {
             />
             <textarea
               className="md:col-span-2 p-4 rounded-xl border min-h-[100px]"
-              placeholder="Instrucciones técnicas..."
+              placeholder="Resumen técnico para el asesor..."
               value={formData.descripcion_tecnica}
               onChange={(e) =>
                 setFormData({
@@ -257,7 +254,7 @@ export const Inventory = () => {
             {editingId && (
               <div className="md:col-span-2 bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
                 <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">
-                  Documentos del Producto
+                  Memoria Técnica (Leída por IA)
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   {products
@@ -265,22 +262,22 @@ export const Inventory = () => {
                     ?.catalogos_archivos?.map((file) => (
                       <div
                         key={file.id}
-                        className="bg-white p-3 rounded-xl border flex justify-between items-center"
+                        className="bg-white p-3 rounded-xl border flex justify-between items-center group"
                       >
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-2 truncate text-slate-600">
                           {file.url.includes(".pdf") ? (
                             <FileText size={16} className="text-red-500" />
                           ) : (
                             <ImageIcon size={16} className="text-blue-500" />
                           )}
-                          <span className="text-xs font-bold truncate text-slate-600">
+                          <span className="text-xs font-bold truncate">
                             {file.nombre_archivo}
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => deleteFile(file.id!, file.url)}
-                          className="p-2 text-slate-300 hover:text-red-500"
+                          className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -301,8 +298,8 @@ export const Inventory = () => {
                       <Paperclip size={18} />
                     )}
                     {uploading
-                      ? "Analizando y subiendo..."
-                      : "Añadir Archivo Técnico"}
+                      ? "Procesando documento..."
+                      : "Subir Manual Técnico"}
                   </div>
                 </div>
               </div>
@@ -311,13 +308,12 @@ export const Inventory = () => {
               type="submit"
               className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest"
             >
-              Guardar Producto
+              Actualizar Producto
             </button>
           </form>
         </div>
       )}
 
-      {/* Lista de productos... */}
       <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b">
@@ -341,13 +337,13 @@ export const Inventory = () => {
                     {p.nombre}
                   </p>
                   <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">
-                    {p.catalogos_archivos?.length || 0} archivos
+                    {p.catalogos_archivos?.length || 0} archivos en memoria
                   </span>
                 </td>
                 <td className="p-6 text-right">
                   <button
                     onClick={() => handleEdit(p)}
-                    className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-2xl"
+                    className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all"
                   >
                     <Edit3 size={20} />
                   </button>
