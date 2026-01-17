@@ -10,7 +10,8 @@ import {
   ImageIcon,
   DollarSign,
   Box,
-  FileText, // Icono para PDF
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
 
 interface Producto {
@@ -57,30 +58,42 @@ export const Inventory = () => {
     fetchProducts();
   }, []);
 
+  // MEJORA: Función de carga con vínculo inmediato a la DB si existe editingId
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploading(true);
       if (!e.target.files || e.target.files.length === 0) return;
       const file = e.target.files[0];
 
-      // Validación simple de extensión
+      // Sanitización de nombre de archivo
       const fileExt = file.name.split(".").pop()?.toLowerCase();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const cleanFileName = `${Date.now()}-${file.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("catalogos")
-        .upload(fileName, file);
+        .upload(cleanFileName, file);
 
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
         .from("catalogos")
-        .getPublicUrl(fileName);
+        .getPublicUrl(cleanFileName);
+      const publicUrl = data.publicUrl;
 
-      setFormData({ ...formData, imagen_url: data.publicUrl });
+      // Actualizar estado local
+      setFormData((prev) => ({ ...prev, imagen_url: publicUrl }));
+
+      // Vínculo inmediato si estamos editando
+      if (editingId) {
+        await supabase
+          .from("productos")
+          .update({ imagen_url: publicUrl })
+          .eq("id", editingId);
+        fetchProducts(); // Refrescar lista
+      }
     } catch (err: any) {
-      console.error("Error subiendo archivo:", err.message);
-      alert("Error al subir el archivo: " + err.message);
+      console.error("Error:", err.message);
+      alert("Error al subir: " + err.message);
     } finally {
       setUploading(false);
     }
@@ -123,21 +136,17 @@ export const Inventory = () => {
     }
   };
 
-  // Función auxiliar para detectar si es PDF
-  const isPDF = (url?: string) =>
-    url?.toLowerCase().includes(".pdf") ||
-    url?.toLowerCase().includes("application/pdf");
+  const isPDF = (url?: string) => url?.toLowerCase().includes(".pdf");
 
   return (
     <div className="space-y-6">
-      {/* Resumen Superior */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 w-full sm:w-auto flex-1">
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
-            Equipos Registrados
+            Inventario Digital
           </p>
           <p className="text-3xl font-black text-slate-800">
-            {products.length}
+            {products.length} Equipos
           </p>
         </div>
         <button
@@ -146,7 +155,7 @@ export const Inventory = () => {
             setEditingId(null);
             setFormData(initialFormState);
           }}
-          className={`w-full sm:w-auto flex items-center justify-center gap-2 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-tighter shadow-xl transition-all ${showForm ? "bg-slate-500" : "bg-blue-600 shadow-blue-200 hover:scale-105"}`}
+          className={`w-full sm:w-auto flex items-center justify-center gap-2 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-tighter shadow-xl transition-all ${showForm ? "bg-slate-500" : "bg-blue-600 hover:scale-105"}`}
         >
           {showForm ? (
             <>
@@ -168,7 +177,7 @@ export const Inventory = () => {
             ) : (
               <ClipboardList className="text-blue-600" />
             )}
-            {editingId ? "Editar Información" : "Nuevo Registro Dental"}
+            {editingId ? "Actualizar Equipo" : "Nuevo Registro Dental"}
           </h3>
           <form
             onSubmit={handleSubmit}
@@ -176,12 +185,11 @@ export const Inventory = () => {
           >
             <div className="lg:col-span-2 flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Nombre Comercial del Equipo
+                Nombre
               </label>
               <input
-                placeholder="Ej: Scanner Intraoral Fussen S6000"
                 required
-                className="p-4 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                className="p-4 rounded-2xl border border-slate-200 font-bold"
                 value={formData.nombre}
                 onChange={(e) =>
                   setFormData({ ...formData, nombre: e.target.value })
@@ -191,10 +199,10 @@ export const Inventory = () => {
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Pilar de Negocio
+                Pilar
               </label>
               <select
-                className="p-4 rounded-2xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                className="p-4 rounded-2xl border border-slate-200 bg-white font-bold"
                 value={formData.categoria}
                 onChange={(e) =>
                   setFormData({ ...formData, categoria: e.target.value as any })
@@ -208,7 +216,7 @@ export const Inventory = () => {
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Precio Final ($)
+                Precio ($)
               </label>
               <div className="relative">
                 <DollarSign
@@ -217,9 +225,8 @@ export const Inventory = () => {
                 />
                 <input
                   type="number"
-                  placeholder="0"
                   required
-                  className="w-full pl-12 p-4 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  className="w-full pl-12 p-4 rounded-2xl border border-slate-200 font-bold"
                   value={formData.precio}
                   onChange={(e) =>
                     setFormData({
@@ -234,7 +241,7 @@ export const Inventory = () => {
 
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Cantidad en Stock
+                Stock
               </label>
               <div className="relative">
                 <Box
@@ -243,9 +250,8 @@ export const Inventory = () => {
                 />
                 <input
                   type="number"
-                  placeholder="0"
                   required
-                  className="w-full pl-12 p-4 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  className="w-full pl-12 p-4 rounded-2xl border border-slate-200 font-bold"
                   value={formData.stock}
                   onChange={(e) =>
                     setFormData({
@@ -258,62 +264,50 @@ export const Inventory = () => {
               </div>
             </div>
 
-            {/* CARGA DE ARCHIVO (IMAGEN O PDF) */}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Documentación / Imagen
+                Archivo (Imagen/PDF)
               </label>
-              <div className="p-3 border-2 border-dashed rounded-2xl flex items-center gap-4 border-slate-200 bg-slate-50 relative">
+              <div
+                className={`p-3 border-2 border-dashed rounded-2xl flex items-center gap-4 transition-all ${formData.imagen_url ? "border-green-200 bg-green-50" : "border-slate-200 bg-slate-50"} relative`}
+              >
                 <input
                   type="file"
                   accept="image/*,application/pdf"
                   onChange={handleFileUpload}
                   className="text-xs flex-1 cursor-pointer opacity-0 absolute inset-0 z-10"
                 />
-                <div className="flex items-center gap-3">
-                  <div className="bg-white p-2 rounded-lg shadow-sm">
-                    {isPDF(formData.imagen_url) ? (
-                      <FileText className="text-red-500" size={20} />
-                    ) : (
-                      <ImageIcon className="text-blue-600" size={20} />
-                    )}
-                  </div>
-                  <span className="text-xs font-bold text-slate-500">
+                <div className="bg-white p-2 rounded-lg shadow-sm">
+                  {isPDF(formData.imagen_url) ? (
+                    <FileText className="text-red-500" />
+                  ) : (
+                    <ImageIcon className="text-blue-600" />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase text-slate-400">
+                    Estado
+                  </span>
+                  <span className="text-xs font-bold text-slate-700">
                     {uploading
                       ? "Subiendo..."
-                      : isPDF(formData.imagen_url)
-                        ? "PDF Cargado"
-                        : "Imagen Cargada"}
+                      : formData.imagen_url
+                        ? "Archivo listo"
+                        : "Seleccionar"}
                   </span>
                 </div>
-                {formData.imagen_url && !isPDF(formData.imagen_url) && (
-                  <img
-                    src={formData.imagen_url}
-                    className="h-10 w-10 object-cover rounded-xl ml-auto"
-                    alt="Preview"
-                  />
-                )}
-                {isPDF(formData.imagen_url) && (
-                  <div className="ml-auto bg-red-100 text-red-600 p-1 rounded text-[10px] font-black">
-                    PDF
-                  </div>
-                )}
-                {uploading && (
-                  <Loader2
-                    className="animate-spin text-blue-500 ml-auto"
-                    size={20}
-                  />
+                {formData.imagen_url && (
+                  <CheckCircle2 className="ml-auto text-green-500" size={20} />
                 )}
               </div>
             </div>
 
             <div className="lg:col-span-3 flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Especificaciones Técnicas (Agente IA)
+                Especificaciones Técnicas
               </label>
               <textarea
-                placeholder="Detalles que el Agente usará..."
-                className="w-full p-4 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                className="w-full p-4 rounded-2xl border border-slate-200 font-medium"
                 rows={3}
                 value={formData.descripcion_tecnica}
                 onChange={(e) =>
@@ -328,15 +322,14 @@ export const Inventory = () => {
             <button
               type="submit"
               disabled={uploading}
-              className="lg:col-span-3 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-[0.2em] hover:bg-black transition-all disabled:opacity-50 shadow-2xl mt-2"
+              className="lg:col-span-3 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 shadow-2xl"
             >
-              {editingId ? "Actualizar Equipo" : "Registrar en Base de Datos"}
+              {editingId ? "Guardar Cambios" : "Crear Producto"}
             </button>
           </form>
         </div>
       )}
 
-      {/* Lista de Productos */}
       <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
         {loading ? (
           <div className="p-20 flex justify-center">
@@ -353,9 +346,6 @@ export const Inventory = () => {
                   <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-center">
                     Stock
                   </th>
-                  <th className="p-6 text-[10px] font-black uppercase text-slate-400">
-                    Precio
-                  </th>
                   <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">
                     Acciones
                   </th>
@@ -368,7 +358,7 @@ export const Inventory = () => {
                     className="hover:bg-slate-50/50 transition-colors group"
                   >
                     <td className="p-6 flex items-center gap-5">
-                      <div className="h-14 w-14 rounded-2xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 shadow-inner flex items-center justify-center">
+                      <div className="h-14 w-14 rounded-2xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center">
                         {p.imagen_url ? (
                           isPDF(p.imagen_url) ? (
                             <FileText size={24} className="text-red-500" />
@@ -376,7 +366,6 @@ export const Inventory = () => {
                             <img
                               src={p.imagen_url}
                               className="w-full h-full object-cover"
-                              alt={p.nombre}
                             />
                           )
                         ) : (
@@ -384,26 +373,24 @@ export const Inventory = () => {
                         )}
                       </div>
                       <div>
-                        <p className="font-black text-slate-800 text-lg leading-tight group-hover:text-blue-600 transition-colors">
+                        <p className="font-black text-slate-800 text-lg leading-tight">
                           {p.nombre}
                         </p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">
+                          ${(Number(p.precio) || 0).toLocaleString()} •{" "}
                           {p.categoria}
                         </p>
                       </div>
                     </td>
                     <td className="p-6 text-center">
                       <span
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black tracking-widest ${Number(p.stock) > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black ${Number(p.stock) > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
                       >
-                        {Number(p.stock) || 0} DISPONIBLES
+                        {Number(p.stock) || 0} UNID.
                       </span>
                     </td>
-                    <td className="p-6 font-black text-slate-800 text-lg">
-                      ${(Number(p.precio) || 0).toLocaleString()}
-                    </td>
                     <td className="p-6 text-right">
-                      <div className="flex justify-end gap-3">
+                      <div className="flex justify-end gap-2">
                         <button
                           onClick={() => handleEdit(p)}
                           className="p-3 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all"
