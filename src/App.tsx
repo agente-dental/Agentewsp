@@ -1,57 +1,72 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { supabase } from "./lib/supabase";
 import { Sidebar } from "./components/Sidebar";
 import { Inventory } from "./pages/Inventory";
 import { ChatIA } from "./components/ChatIA";
+import { Login } from "./pages/Login";
 
 function App() {
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1. Verificación inmediata
+    const getInitialSession = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      setSession(currentSession);
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // 2. Suscripción a cambios
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // ESTO ES LO QUE EVITA EL PARPADEO:
+  // Mientras loading sea true, no mostramos NADA del Dashboard
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Si después de cargar no hay sesión, mostramos el Login
+  if (!session) {
+    return <Login />;
+  }
+
+  // Solo si hay sesión llegamos aquí
   return (
     <Router>
       <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
         <Sidebar />
-
-        {/* ml-0 en móvil, ml-72 en PC. pt-20 en móvil para el botón de menú */}
         <main className="flex-1 lg:ml-72 p-4 md:p-8 lg:p-12 pt-20 lg:pt-12">
-          <header className="max-w-[1600px] mx-auto mb-10">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
-                  Inventario Global
-                </h2>
-                <p className="text-slate-500 mt-2 text-base md:text-lg">
-                  Control de stock y gestión de Agente IA.
-                </p>
-              </div>
-
-              <div className="w-full md:w-auto bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-200">
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-                  Estado del Agente
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-                  <span className="font-bold text-slate-700 text-sm">
-                    WASAPI ACTIVO
-                  </span>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="max-w-[1600px] mx-auto">
-            <Routes>
-              <Route path="/" element={<Inventory />} />
-              <Route path="/inventario" element={<Inventory />} />
-              <Route
-                path="/chats"
-                element={
-                  <div className="bg-white p-12 md:p-20 rounded-3xl shadow-sm text-center text-slate-400 border-2 border-dashed border-slate-100">
-                    Métricas de Wasapi disponibles pronto
-                  </div>
-                }
-              />
-            </Routes>
-          </div>
+          {/* ... resto de tu contenido del Dashboard ... */}
+          <Routes>
+            <Route path="/" element={<Inventory />} />
+            <Route path="/inventario" element={<Inventory />} />
+            <Route path="/chats" element={<div>Métricas pronto</div>} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
         </main>
-
         <ChatIA />
       </div>
     </Router>
