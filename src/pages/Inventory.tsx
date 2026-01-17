@@ -4,20 +4,15 @@ import * as pdfjsLib from "pdfjs-dist";
 import {
   Plus,
   Loader2,
-  ClipboardList,
   Trash2,
   Edit3,
   X,
   ImageIcon,
-  DollarSign,
-  Box,
   FileText,
-  ExternalLink,
   Paperclip,
   CheckCircle2,
 } from "lucide-react";
 
-// Configuración del worker de PDF.js para procesamiento en navegador
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface ArchivoAdjunto {
@@ -56,9 +51,9 @@ export const Inventory = () => {
 
   const fetchProducts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("productos")
-      .select("*, catalogos_archivos(*)") // Trae la relación de archivos
+      .select("*, catalogos_archivos(*)")
       .order("created_at", { ascending: false });
     if (data) setProducts(data);
     setLoading(false);
@@ -68,18 +63,52 @@ export const Inventory = () => {
     fetchProducts();
   }, []);
 
+  // FUNCIÓN CORREGIDA: Borrado de archivo de Storage y Base de Datos
+  const deleteFile = async (fileId: string, fileUrl: string) => {
+    if (
+      !confirm(
+        "¿Eliminar este manual? La IA perderá este conocimiento técnico.",
+      )
+    )
+      return;
+
+    try {
+      // 1. Obtener el nombre real del archivo desde la URL
+      const urlParts = fileUrl.split("/");
+      const fileName = urlParts[urlParts.length - 1];
+
+      // 2. Borrar del Storage
+      const { error: storageError } = await supabase.storage
+        .from("catalogos")
+        .remove([fileName]);
+
+      if (storageError) console.warn("Aviso Storage:", storageError.message);
+
+      // 3. Borrar de la tabla catalogos_archivos
+      const { error: dbError } = await supabase
+        .from("catalogos_archivos")
+        .delete()
+        .eq("id", fileId);
+
+      if (dbError) throw dbError;
+
+      // 4. Refrescar datos
+      await fetchProducts();
+      alert("Archivo eliminado correctamente");
+    } catch (err: any) {
+      console.error("Error al borrar:", err);
+      alert("No se pudo borrar: " + err.message);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploading(true);
-      if (!e.target.files || e.target.files.length === 0 || !editingId) {
-        alert("Guarda el producto antes de subir archivos.");
-        return;
-      }
+      if (!e.target.files || e.target.files.length === 0 || !editingId) return;
 
       const file = e.target.files[0];
       let extractedText = "";
 
-      // Extracción automática si es PDF
       if (file.type === "application/pdf") {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -94,9 +123,7 @@ export const Inventory = () => {
         extractedText = fullText;
       }
 
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
+      const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`;
       const { error: uploadError } = await supabase.storage
         .from("catalogos")
         .upload(fileName, file);
@@ -106,7 +133,6 @@ export const Inventory = () => {
         .from("catalogos")
         .getPublicUrl(fileName);
 
-      // Guardado en la tabla de catálogos vinculada al producto
       await supabase.from("catalogos_archivos").insert([
         {
           producto_id: editingId,
@@ -118,35 +144,9 @@ export const Inventory = () => {
 
       fetchProducts();
     } catch (err: any) {
-      alert("Error en proceso automático: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setUploading(false);
-    }
-  };
-
-  // NUEVA FUNCIÓN: Borrado de archivo de Storage y Base de Datos
-  const deleteFile = async (id: string, url: string) => {
-    if (
-      confirm(
-        "¿Estás seguro de eliminar este archivo? La IA perderá este conocimiento.",
-      )
-    ) {
-      try {
-        const fileName = url.split("/").pop();
-        if (fileName) {
-          await supabase.storage.from("catalogos").remove([fileName]);
-        }
-
-        const { error } = await supabase
-          .from("catalogos_archivos")
-          .delete()
-          .eq("id", id);
-
-        if (error) throw error;
-        fetchProducts();
-      } catch (err: any) {
-        alert("Error al eliminar archivo: " + err.message);
-      }
     }
   };
 
@@ -175,21 +175,13 @@ export const Inventory = () => {
     setFormData({ ...p, precio: p.precio || "", stock: p.stock || "" });
     setEditingId(p.id || null);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleDeleteProduct = async (id: string, nombre: string) => {
-    if (confirm(`¿Eliminar definitivamente ${nombre}?`)) {
-      const { error } = await supabase.from("productos").delete().eq("id", id);
-      if (!error) fetchProducts();
-    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-6 rounded-[24px] shadow-sm border border-slate-100">
-        <h2 className="text-3xl font-black text-slate-800 tracking-tighter">
-          Inventario Dental Boss
+        <h2 className="text-3xl font-black text-slate-800 tracking-tighter italic uppercase">
+          Dental Boss Admin
         </h2>
         <button
           onClick={() => {
@@ -197,47 +189,38 @@ export const Inventory = () => {
             setEditingId(null);
             setFormData(initialFormState);
           }}
-          className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs"
+          className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs hover:bg-blue-700 transition-all"
         >
           Nuevo Registro
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white p-8 rounded-[32px] shadow-xl border border-blue-50">
+        <div className="bg-white p-8 rounded-[32px] shadow-xl border border-blue-50 animate-in fade-in zoom-in duration-200">
           <form
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Nombre Equipo
-              </label>
-              <input
-                className="p-4 rounded-xl border font-bold"
-                value={formData.nombre}
-                onChange={(e) =>
-                  setFormData({ ...formData, nombre: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Categoría
-              </label>
-              <select
-                className="p-4 rounded-xl border font-bold bg-white"
-                value={formData.categoria}
-                onChange={(e) =>
-                  setFormData({ ...formData, categoria: e.target.value as any })
-                }
-              >
-                <option value="scanners">Scanners</option>
-                <option value="sillones">Sillones</option>
-                <option value="equipamiento">Equipamiento</option>
-              </select>
-            </div>
+            <input
+              placeholder="Nombre Equipo"
+              className="p-4 rounded-xl border font-bold"
+              value={formData.nombre}
+              onChange={(e) =>
+                setFormData({ ...formData, nombre: e.target.value })
+              }
+              required
+            />
+            <select
+              className="p-4 rounded-xl border font-bold bg-white"
+              value={formData.categoria}
+              onChange={(e) =>
+                setFormData({ ...formData, categoria: e.target.value as any })
+              }
+            >
+              <option value="scanners">Scanners</option>
+              <option value="sillones">Sillones</option>
+              <option value="equipamiento">Equipamiento</option>
+            </select>
             <input
               type="number"
               placeholder="Precio ($)"
@@ -264,7 +247,7 @@ export const Inventory = () => {
             />
             <textarea
               className="md:col-span-2 p-4 rounded-xl border min-h-[100px]"
-              placeholder="Descripción técnica para el Agente IA"
+              placeholder="Instrucciones técnicas para la IA..."
               value={formData.descripcion_tecnica}
               onChange={(e) =>
                 setFormData({
@@ -277,7 +260,7 @@ export const Inventory = () => {
             {editingId && (
               <div className="md:col-span-2 bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
                 <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">
-                  Gestión de Manuales (Leídos por IA)
+                  Memoria Técnica del Agente
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   {products
@@ -297,16 +280,13 @@ export const Inventory = () => {
                             {file.nombre_archivo}
                           </span>
                         </div>
-                        <div className="flex gap-2">
-                          <CheckCircle2 size={16} className="text-green-500" />
-                          <button
-                            type="button"
-                            onClick={() => deleteFile(file.id!, file.url)}
-                            className="text-slate-300 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteFile(file.id!, file.url)}
+                          className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     ))}
                 </div>
@@ -324,17 +304,17 @@ export const Inventory = () => {
                       <Paperclip size={18} />
                     )}
                     {uploading
-                      ? "Analizando contenido..."
-                      : "Subir nuevo PDF o Imagen"}
+                      ? "Procesando manual..."
+                      : "Añadir Archivo Técnico"}
                   </div>
                 </div>
               </div>
             )}
             <button
               type="submit"
-              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-lg"
+              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.01] transition-all"
             >
-              Guardar Cambios del Producto
+              Guardar Producto
             </button>
           </form>
         </div>
@@ -344,8 +324,8 @@ export const Inventory = () => {
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b">
             <tr>
-              <th className="p-6 text-[10px] font-black uppercase text-slate-400">
-                Equipo
+              <th className="p-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                Equipo Dental
               </th>
               <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">
                 Acciones
@@ -362,25 +342,22 @@ export const Inventory = () => {
                   <p className="font-black text-slate-800 text-lg">
                     {p.nombre}
                   </p>
-                  <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tighter">
-                    {p.catalogos_archivos?.length || 0} documentos analizados
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">
+                      {p.categoria}
+                    </span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                      {p.catalogos_archivos?.length || 0} archivos en memoria
+                    </span>
+                  </div>
                 </td>
                 <td className="p-6 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => handleEdit(p)}
-                      className="p-3 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all"
-                    >
-                      <Edit3 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProduct(p.id!, p.nombre)}
-                      className="p-3 bg-slate-50 text-slate-400 hover:text-red-600 rounded-xl transition-all"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleEdit(p)}
+                    className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
+                  >
+                    <Edit3 size={20} />
+                  </button>
                 </td>
               </tr>
             ))}
