@@ -1,4 +1,3 @@
-// src/lib/groq.ts
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
 
@@ -9,50 +8,64 @@ const groq = new Groq({
 
 export const chatWithAgente = async (userMessage: string) => {
   try {
-    // 1. Obtenemos los productos con sus links de fotos/PDFs
-    const { data: productos } = await supabase
-      .from("productos")
-      .select("nombre, precio, stock, descripcion_tecnica, imagen_url");
+    // 1. Consulta expandida para traer productos y sus múltiples archivos asociados
+    const { data: productos, error } = await supabase.from("productos").select(`
+        nombre, 
+        precio, 
+        stock, 
+        descripcion_tecnica, 
+        catalogos_archivos (nombre_archivo, url)
+      `);
 
-    // 2. Formateamos el catálogo para la IA
-    const catalogoVisual = productos
-      ?.map((p) => {
-        const tipoArchivo = p.imagen_url?.toLowerCase().endsWith(".pdf")
-          ? "PDF (Manual/Catálogo)"
-          : "Imagen/Foto";
-        return `- PRODUCTO: ${p.nombre}
-        PRECIO: $${p.precio}
-        STOCK: ${p.stock}
-        INFO: ${p.descripcion_tecnica}
-        ARCHIVO (${tipoArchivo}): ${p.imagen_url || "No disponible"}`;
+    if (error) throw error;
+
+    // 2. Formateo del contexto para la IA
+    const catalogoContexto = productos
+      ?.map((p: any) => {
+        const archivos =
+          p.catalogos_archivos && p.catalogos_archivos.length > 0
+            ? p.catalogos_archivos
+                .map(
+                  (a: any) =>
+                    `   - ARCHIVO: ${a.nombre_archivo} | LINK: ${a.url}`,
+                )
+                .join("\n")
+            : "   - No hay archivos adicionales para este equipo.";
+
+        return `PRODUCTO: ${p.nombre}
+PRECIO: $${p.precio}
+STOCK: ${p.stock}
+INFO TÉCNICA: ${p.descripcion_tecnica}
+DOCUMENTOS Y LINKS DISPONIBLES:
+${archivos}`;
       })
-      .join("\n\n");
+      .join("\n\n---\n\n");
 
-    // 3. System Prompt: Instrucciones de entrega de archivos
+    // 3. Llamada a Groq con instrucciones precisas de entrega
     const response = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `Eres el Agente Comercial de "Dental Boss". Tienes acceso directo al inventario y a los archivos del servidor (Bucket).
+          content: `Eres el Asesor Experto de "Dental Boss". 
           
-          REGLAS DE INTERACCIÓN:
-          1. Si el usuario pregunta por un equipo, descríbelo y OFRECE el link de la foto o PDF.
-          2. Si el usuario dice "pásame la foto", "quiero ver el catálogo" o similares, DEBES responder con el link exacto que aparece en el inventario.
-          3. IMPORTANTE: Presenta los links de forma limpia, por ejemplo: "Puedes ver la imagen aquí: [URL]".
-          4. Si el archivo es un PDF, aclara que es el manual técnico o catálogo detallado.
+          REGLAS DE ARCHIVOS:
+          1. Tienes una lista de archivos reales por cada producto bajo "DOCUMENTOS Y LINKS DISPONIBLES".
+          2. Si el usuario pide un catálogo, foto o manual, DEBES proporcionar el link exacto que aparece en la lista.
+          3. No inventes URLs. Usa solo las proporcionadas.
+          4. Si un equipo tiene varios archivos, menciónalos todos para que el usuario elija.
 
-          CATÁLOGO DISPONIBLE:
-          ${catalogoVisual}`,
+          INVENTARIO ACTUALIZADO:
+          ${catalogoContexto}`,
         },
         { role: "user", content: userMessage },
       ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.5, // Menor temperatura para que sea más preciso con los links
+      temperature: 0.4,
     });
 
     return response.choices[0].message.content;
   } catch (error) {
-    console.error("Error:", error);
-    return "Tuve un problema al conectar con el servidor de archivos.";
+    console.error("Error en el Agente:", error);
+    return "Lo siento, tuve un problema al consultar el catálogo de archivos.";
   }
 };
