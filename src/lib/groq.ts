@@ -8,64 +8,55 @@ const groq = new Groq({
 
 export const chatWithAgente = async (userMessage: string) => {
   try {
-    // 1. Consulta expandida para traer productos y sus múltiples archivos asociados
+    // 1. Consulta el inventario incluyendo el texto extraído de los archivos
     const { data: productos, error } = await supabase.from("productos").select(`
-        nombre, 
-        precio, 
-        stock, 
-        descripcion_tecnica, 
-        catalogos_archivos (nombre_archivo, url)
+        nombre, precio, stock, descripcion_tecnica, 
+        catalogos_archivos (nombre_archivo, url, texto_extraido)
       `);
 
     if (error) throw error;
 
-    // 2. Formateo del contexto para la IA
-    const catalogoContexto = productos
+    // 2. Formateamos el conocimiento profundo para la IA
+    const conocimientoTecnico = productos
       ?.map((p: any) => {
-        const archivos =
-          p.catalogos_archivos && p.catalogos_archivos.length > 0
-            ? p.catalogos_archivos
-                .map(
-                  (a: any) =>
-                    `   - ARCHIVO: ${a.nombre_archivo} | LINK: ${a.url}`,
-                )
-                .join("\n")
-            : "   - No hay archivos adicionales para este equipo.";
+        const manuales = p.catalogos_archivos
+          ?.map(
+            (a: any) =>
+              `   - DOCUMENTO: ${a.nombre_archivo}
+              CONTENIDO TÉCNICO: ${a.texto_extraido?.substring(0, 1500) || "No hay texto extraído disponible."}
+              URL: ${a.url}`,
+          )
+          .join("\n");
 
-        return `PRODUCTO: ${p.nombre}
-PRECIO: $${p.precio}
-STOCK: ${p.stock}
-INFO TÉCNICA: ${p.descripcion_tecnica}
-DOCUMENTOS Y LINKS DISPONIBLES:
-${archivos}`;
+        return `PRODUCTO: ${p.nombre}\nINFO GENERAL: ${p.descripcion_tecnica}\nCONOCIMIENTO DE MANUALES:\n${manuales}`;
       })
       .join("\n\n---\n\n");
 
-    // 3. Llamada a Groq con instrucciones precisas de entrega
+    // 3. System Prompt: Instrucción de "Lectura Experta"
     const response = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `Eres el Asesor Experto de "Dental Boss". 
+          content: `Eres el Asesor Técnico Principal de "Dental Boss".
           
-          REGLAS DE ARCHIVOS:
-          1. Tienes una lista de archivos reales por cada producto bajo "DOCUMENTOS Y LINKS DISPONIBLES".
-          2. Si el usuario pide un catálogo, foto o manual, DEBES proporcionar el link exacto que aparece en la lista.
-          3. No inventes URLs. Usa solo las proporcionadas.
-          4. Si un equipo tiene varios archivos, menciónalos todos para que el usuario elija.
+          CAPACIDADES TÉCNICAS:
+          1. Tienes acceso al "CONOCIMIENTO DE MANUALES" extraído directamente de los PDFs de los equipos.
+          2. Si el usuario pregunta por especificaciones, mantenimiento, voltajes o uso, busca la respuesta en el texto extraído.
+          3. IMPORTANTE: Cuando respondas usando un manual, di: "De acuerdo al manual técnico que tengo cargado...".
+          4. Siempre proporciona el link del archivo correspondiente para que el usuario pueda verlo.
 
-          INVENTARIO ACTUALIZADO:
-          ${catalogoContexto}`,
+          BASE de CONOCIMIENTO ACTUALIZADA:
+          ${conocimientoTecnico}`,
         },
         { role: "user", content: userMessage },
       ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.4,
+      temperature: 0.3,
     });
 
     return response.choices[0].message.content;
   } catch (error) {
-    console.error("Error en el Agente:", error);
-    return "Lo siento, tuve un problema al consultar el catálogo de archivos.";
+    console.error("Error IA:", error);
+    return "Lo siento, tuve un problema al procesar la información técnica de los manuales.";
   }
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import * as pdfjsLib from "pdfjs-dist";
 import {
   Plus,
   Loader2,
@@ -13,19 +14,24 @@ import {
   FileText,
   ExternalLink,
   Paperclip,
+  CheckCircle2,
 } from "lucide-react";
+
+// Configuración del worker de PDF.js para procesamiento en navegador
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface ArchivoAdjunto {
   id?: string;
   nombre_archivo: string;
   url: string;
+  texto_extraido?: string;
 }
 
 interface Producto {
   id?: string;
   nombre: string;
   categoria: "sillones" | "scanners" | "equipamiento";
-  precio: number | ""; // Permitimos "" para el manejo del input
+  precio: number | "";
   stock: number | "";
   descripcion_tecnica: string;
   catalogos_archivos?: ArchivoAdjunto[];
@@ -54,9 +60,7 @@ export const Inventory = () => {
       .from("productos")
       .select("*, catalogos_archivos(*)")
       .order("created_at", { ascending: false });
-
-    if (error) console.error("Error:", error.message);
-    else if (data) setProducts(data);
+    if (data) setProducts(data);
     setLoading(false);
   };
 
@@ -68,11 +72,28 @@ export const Inventory = () => {
     try {
       setUploading(true);
       if (!e.target.files || e.target.files.length === 0 || !editingId) {
-        alert("Primero guarda el producto para poder añadirle catálogos.");
+        alert("Guarda el producto antes de subir archivos.");
         return;
       }
 
       const file = e.target.files[0];
+      let extractedText = "";
+
+      // Extracción automática si es PDF
+      if (file.type === "application/pdf") {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+        const pagesToRead = Math.min(pdf.numPages, 5); // Analiza las primeras 5 páginas
+        for (let i = 1; i <= pagesToRead; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText +=
+            content.items.map((item: any) => item.str).join(" ") + " ";
+        }
+        extractedText = fullText;
+      }
+
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -81,45 +102,33 @@ export const Inventory = () => {
         .upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
+      const { data: urlData } = supabase.storage
         .from("catalogos")
         .getPublicUrl(fileName);
 
-      const { error: insertError } = await supabase
-        .from("catalogos_archivos")
-        .insert([
-          {
-            producto_id: editingId,
-            nombre_archivo: file.name,
-            url: data.publicUrl,
-          },
-        ]);
+      await supabase.from("catalogos_archivos").insert([
+        {
+          producto_id: editingId,
+          nombre_archivo: file.name,
+          url: urlData.publicUrl,
+          texto_extraido: extractedText,
+        },
+      ]);
 
-      if (insertError) throw insertError;
       fetchProducts();
     } catch (err: any) {
-      alert("Error: " + err.message);
+      alert("Error en proceso automático: " + err.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const deleteFile = async (id: string) => {
-    if (confirm("¿Eliminar este archivo?")) {
-      await supabase.from("catalogos_archivos").delete().eq("id", id);
-      fetchProducts();
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Limpieza de datos antes de enviar a Supabase
     const payload = {
-      nombre: formData.nombre,
-      categoria: formData.categoria,
+      ...formData,
       precio: formData.precio === "" ? 0 : Number(formData.precio),
       stock: formData.stock === "" ? 0 : Number(formData.stock),
-      descripcion_tecnica: formData.descripcion_tecnica,
     };
 
     if (editingId) {
@@ -127,7 +136,6 @@ export const Inventory = () => {
     } else {
       await supabase.from("productos").insert([payload]);
     }
-
     setFormData(initialFormState);
     setEditingId(null);
     setShowForm(false);
@@ -135,269 +143,187 @@ export const Inventory = () => {
   };
 
   const handleEdit = (p: Producto) => {
-    setFormData({
-      ...p,
-      precio: p.precio === 0 ? "" : p.precio,
-      stock: p.stock === 0 ? "" : p.stock,
-    });
+    setFormData({ ...p, precio: p.precio || "", stock: p.stock || "" });
     setEditingId(p.id || null);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-6 rounded-[24px] shadow-sm border border-slate-100">
-        <div>
-          <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">
-            Panel de Control
-          </p>
-          <h2 className="text-3xl font-black text-slate-800">
-            Inventario Dental
-          </h2>
-        </div>
+        <h2 className="text-3xl font-black text-slate-800 tracking-tighter">
+          Inventario Dental Boss
+        </h2>
         <button
           onClick={() => {
             setShowForm(true);
             setEditingId(null);
             setFormData(initialFormState);
           }}
-          className="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all flex gap-2"
+          className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs"
         >
-          <Plus size={18} /> Nuevo Equipo
+          Nuevo Registro
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white p-8 rounded-[32px] shadow-xl border border-blue-50 animate-in fade-in slide-in-from-top-4">
+        <div className="bg-white p-8 rounded-[32px] shadow-xl border border-blue-50">
           <form
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Nombre
-              </label>
-              <input
-                className="p-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.nombre}
-                onChange={(e) =>
-                  setFormData({ ...formData, nombre: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Pilar
-              </label>
-              <select
-                className="p-4 rounded-xl border font-bold bg-white"
-                value={formData.categoria}
-                onChange={(e) =>
-                  setFormData({ ...formData, categoria: e.target.value as any })
-                }
-              >
-                <option value="scanners">Scanners</option>
-                <option value="sillones">Sillones</option>
-                <option value="equipamiento">Equipamiento</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Precio ($)
-              </label>
-              <input
-                type="number"
-                className="p-4 rounded-xl border font-bold"
-                value={formData.precio}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    precio: e.target.value === "" ? "" : Number(e.target.value),
-                  })
-                }
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Stock
-              </label>
-              <input
-                type="number"
-                className="p-4 rounded-xl border font-bold"
-                value={formData.stock}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    stock: e.target.value === "" ? "" : Number(e.target.value),
-                  })
-                }
-              />
-            </div>
-
-            <div className="md:col-span-2 flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Descripción técnica (Agente IA)
-              </label>
-              <textarea
-                className="p-4 rounded-xl border min-h-[100px]"
-                value={formData.descripcion_tecnica}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    descripcion_tecnica: e.target.value,
-                  })
-                }
-              />
-            </div>
+            <input
+              placeholder="Nombre del Equipo"
+              className="p-4 rounded-xl border font-bold"
+              value={formData.nombre}
+              onChange={(e) =>
+                setFormData({ ...formData, nombre: e.target.value })
+              }
+              required
+            />
+            <select
+              className="p-4 rounded-xl border font-bold bg-white"
+              value={formData.categoria}
+              onChange={(e) =>
+                setFormData({ ...formData, categoria: e.target.value as any })
+              }
+            >
+              <option value="scanners">Scanners</option>
+              <option value="sillones">Sillones</option>
+              <option value="equipamiento">Equipamiento</option>
+            </select>
+            <input
+              type="number"
+              placeholder="Precio ($)"
+              className="p-4 rounded-xl border font-bold"
+              value={formData.precio}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  precio: e.target.value === "" ? "" : Number(e.target.value),
+                })
+              }
+            />
+            <input
+              type="number"
+              placeholder="Stock"
+              className="p-4 rounded-xl border font-bold"
+              value={formData.stock}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  stock: e.target.value === "" ? "" : Number(e.target.value),
+                })
+              }
+            />
+            <textarea
+              className="md:col-span-2 p-4 rounded-xl border min-h-[100px]"
+              placeholder="Descripción para la IA"
+              value={formData.descripcion_tecnica}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  descripcion_tecnica: e.target.value,
+                })
+              }
+            />
 
             {editingId && (
               <div className="md:col-span-2 bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
-                <h4 className="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest flex items-center gap-2">
-                  <Paperclip size={14} /> Gestión de Catálogos y Archivos
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">
+                  Documentos Analizados por IA
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   {products
                     .find((p) => p.id === editingId)
                     ?.catalogos_archivos?.map((file) => (
                       <div
                         key={file.id}
-                        className="bg-white p-4 rounded-2xl border flex justify-between items-center group shadow-sm"
+                        className="bg-white p-3 rounded-xl border flex justify-between items-center"
                       >
-                        <div className="flex items-center gap-3 truncate">
-                          {file.url.includes(".pdf") ? (
-                            <FileText size={18} className="text-red-500" />
-                          ) : (
-                            <ImageIcon size={18} className="text-blue-500" />
-                          )}
-                          <span className="text-xs font-bold truncate text-slate-700">
+                        <div className="flex items-center gap-2 truncate">
+                          <FileText
+                            size={16}
+                            className={
+                              file.url.includes(".pdf")
+                                ? "text-red-500"
+                                : "text-blue-500"
+                            }
+                          />
+                          <span className="text-xs font-bold truncate">
                             {file.nombre_archivo}
                           </span>
                         </div>
-                        <div className="flex gap-2">
-                          <a
-                            href={file.url}
-                            target="_blank"
-                            className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg"
-                          >
-                            <ExternalLink size={16} />
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => deleteFile(file.id!)}
-                            className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                        <CheckCircle2 size={16} className="text-green-500" />
                       </div>
                     ))}
                 </div>
-                <div className="relative group">
+                <div className="relative">
                   <input
                     type="file"
                     onChange={handleFileUpload}
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                    disabled={uploading}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
                   />
-                  <div className="bg-white text-slate-600 p-8 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 group-hover:border-blue-400 group-hover:bg-blue-50 transition-all">
+                  <div className="bg-white p-4 rounded-xl border border-slate-300 flex justify-center gap-2 font-black text-xs uppercase text-slate-500">
                     {uploading ? (
-                      <Loader2
-                        className="animate-spin text-blue-600"
-                        size={32}
-                      />
+                      <Loader2 className="animate-spin" />
                     ) : (
-                      <Plus className="text-slate-400" size={32} />
+                      <Paperclip size={18} />
                     )}
-                    <span className="text-xs font-black uppercase tracking-widest">
-                      {uploading
-                        ? "Subiendo archivo..."
-                        : "Click para añadir manual o foto"}
-                    </span>
+                    {uploading
+                      ? "Analizando Contenido..."
+                      : "Subir Manual para que la IA lo lea"}
                   </div>
                 </div>
               </div>
             )}
-
-            <div className="md:col-span-2 flex gap-3 pt-4">
-              <button
-                type="submit"
-                className="flex-1 bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
-              >
-                {editingId ? "Actualizar Producto" : "Guardar Producto"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="px-8 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-xs"
-              >
-                Cerrar
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest"
+            >
+              Guardar Cambios
+            </button>
           </form>
         </div>
       )}
 
+      {/* Tabla de Productos */}
       <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th className="p-6 text-[10px] font-black uppercase text-slate-400">
-                  Equipo y Archivos
-                </th>
-                <th className="p-6 text-[10px] font-black uppercase text-slate-400">
-                  Stock
-                </th>
-                <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">
-                  Acciones
-                </th>
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 border-b">
+            <tr>
+              <th className="p-6 text-[10px] font-black uppercase text-slate-400">
+                Equipo
+              </th>
+              <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr
+                key={p.id}
+                className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+              >
+                <td className="p-6">
+                  <p className="font-black text-slate-800">{p.nombre}</p>
+                  <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tighter">
+                    {p.catalogos_archivos?.length || 0} manuales analizados
+                  </p>
+                </td>
+                <td className="p-6 text-right">
+                  <button
+                    onClick={() => handleEdit(p)}
+                    className="p-3 bg-slate-100 text-slate-400 hover:text-blue-600 rounded-xl"
+                  >
+                    <Edit3 size={18} />
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {products.map((p) => (
-                <tr
-                  key={p.id}
-                  className="hover:bg-slate-50/50 transition-colors group"
-                >
-                  <td className="p-6">
-                    <p className="font-black text-slate-800 text-lg">
-                      {p.nombre}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      <span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-500 rounded-md uppercase tracking-tighter">
-                        {p.categoria}
-                      </span>
-                      {p.catalogos_archivos &&
-                        p.catalogos_archivos.length > 0 && (
-                          <span className="text-[10px] font-black px-2 py-1 bg-blue-100 text-blue-600 rounded-md uppercase tracking-tighter flex items-center gap-1">
-                            <Paperclip size={10} />{" "}
-                            {p.catalogos_archivos.length} archivos
-                          </span>
-                        )}
-                    </div>
-                  </td>
-                  <td className="p-6">
-                    <span
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black ${Number(p.stock) > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
-                    >
-                      {p.stock} UNIDADES
-                    </span>
-                  </td>
-                  <td className="p-6 text-right">
-                    <button
-                      onClick={() => handleEdit(p)}
-                      className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all"
-                    >
-                      <Edit3 size={20} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
