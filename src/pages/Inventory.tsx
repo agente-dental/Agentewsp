@@ -10,6 +10,7 @@ import {
   ImageIcon,
   DollarSign,
   Box,
+  FileText, // Icono para PDF
 } from "lucide-react";
 
 interface Producto {
@@ -61,17 +62,25 @@ export const Inventory = () => {
       setUploading(true);
       if (!e.target.files || e.target.files.length === 0) return;
       const file = e.target.files[0];
-      const fileName = `${Date.now()}-${file.name}`;
+
+      // Validación simple de extensión
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
       const { error: uploadError } = await supabase.storage
         .from("catalogos")
         .upload(fileName, file);
+
       if (uploadError) throw uploadError;
+
       const { data } = supabase.storage
         .from("catalogos")
         .getPublicUrl(fileName);
+
       setFormData({ ...formData, imagen_url: data.publicUrl });
     } catch (err: any) {
       console.error("Error subiendo archivo:", err.message);
+      alert("Error al subir el archivo: " + err.message);
     } finally {
       setUploading(false);
     }
@@ -113,6 +122,11 @@ export const Inventory = () => {
       if (!error) fetchProducts();
     }
   };
+
+  // Función auxiliar para detectar si es PDF
+  const isPDF = (url?: string) =>
+    url?.toLowerCase().includes(".pdf") ||
+    url?.toLowerCase().includes("application/pdf");
 
   return (
     <div className="space-y-6">
@@ -160,7 +174,6 @@ export const Inventory = () => {
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {/* NOMBRE */}
             <div className="lg:col-span-2 flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
                 Nombre Comercial del Equipo
@@ -176,7 +189,6 @@ export const Inventory = () => {
               />
             </div>
 
-            {/* CATEGORIA */}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
                 Pilar de Negocio
@@ -194,7 +206,6 @@ export const Inventory = () => {
               </select>
             </div>
 
-            {/* PRECIO */}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
                 Precio Final ($)
@@ -221,7 +232,6 @@ export const Inventory = () => {
               </div>
             </div>
 
-            {/* STOCK */}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
                 Cantidad en Stock
@@ -248,32 +258,45 @@ export const Inventory = () => {
               </div>
             </div>
 
-            {/* IMAGEN */}
+            {/* CARGA DE ARCHIVO (IMAGEN O PDF) */}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
-                Catálogo (Imagen)
+                Documentación / Imagen
               </label>
               <div className="p-3 border-2 border-dashed rounded-2xl flex items-center gap-4 border-slate-200 bg-slate-50 relative">
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   onChange={handleFileUpload}
                   className="text-xs flex-1 cursor-pointer opacity-0 absolute inset-0 z-10"
                 />
                 <div className="flex items-center gap-3">
                   <div className="bg-white p-2 rounded-lg shadow-sm">
-                    <ImageIcon className="text-blue-600" size={20} />
+                    {isPDF(formData.imagen_url) ? (
+                      <FileText className="text-red-500" size={20} />
+                    ) : (
+                      <ImageIcon className="text-blue-600" size={20} />
+                    )}
                   </div>
                   <span className="text-xs font-bold text-slate-500">
-                    {uploading ? "Subiendo..." : "Click para subir foto"}
+                    {uploading
+                      ? "Subiendo..."
+                      : isPDF(formData.imagen_url)
+                        ? "PDF Cargado"
+                        : "Imagen Cargada"}
                   </span>
                 </div>
-                {formData.imagen_url && (
+                {formData.imagen_url && !isPDF(formData.imagen_url) && (
                   <img
                     src={formData.imagen_url}
                     className="h-10 w-10 object-cover rounded-xl ml-auto"
                     alt="Preview"
                   />
+                )}
+                {isPDF(formData.imagen_url) && (
+                  <div className="ml-auto bg-red-100 text-red-600 p-1 rounded text-[10px] font-black">
+                    PDF
+                  </div>
                 )}
                 {uploading && (
                   <Loader2
@@ -284,13 +307,12 @@ export const Inventory = () => {
               </div>
             </div>
 
-            {/* DESCRIPCION */}
             <div className="lg:col-span-3 flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1">
                 Especificaciones Técnicas (Agente IA)
               </label>
               <textarea
-                placeholder="Detalles que el Agente usará para convencer al cliente..."
+                placeholder="Detalles que el Agente usará..."
                 className="w-full p-4 rounded-2xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                 rows={3}
                 value={formData.descripcion_tecnica}
@@ -329,10 +351,10 @@ export const Inventory = () => {
                     Equipo
                   </th>
                   <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-center">
-                    Disponibilidad
+                    Stock
                   </th>
                   <th className="p-6 text-[10px] font-black uppercase text-slate-400">
-                    Inversión
+                    Precio
                   </th>
                   <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">
                     Acciones
@@ -346,17 +368,19 @@ export const Inventory = () => {
                     className="hover:bg-slate-50/50 transition-colors group"
                   >
                     <td className="p-6 flex items-center gap-5">
-                      <div className="h-14 w-14 rounded-2xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 shadow-inner">
+                      <div className="h-14 w-14 rounded-2xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 shadow-inner flex items-center justify-center">
                         {p.imagen_url ? (
-                          <img
-                            src={p.imagen_url}
-                            className="w-full h-full object-cover"
-                            alt={p.nombre}
-                          />
+                          isPDF(p.imagen_url) ? (
+                            <FileText size={24} className="text-red-500" />
+                          ) : (
+                            <img
+                              src={p.imagen_url}
+                              className="w-full h-full object-cover"
+                              alt={p.nombre}
+                            />
+                          )
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-300">
-                            <ImageIcon size={24} />
-                          </div>
+                          <ImageIcon size={24} className="text-slate-300" />
                         )}
                       </div>
                       <div>
