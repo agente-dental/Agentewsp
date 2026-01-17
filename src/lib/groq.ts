@@ -1,3 +1,4 @@
+// src/lib/groq.ts
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
 
@@ -8,54 +9,50 @@ const groq = new Groq({
 
 export const chatWithAgente = async (userMessage: string) => {
   try {
-    // 1. Extraemos los datos frescos de la base de datos (Usando tus nuevas columnas)
-    const { data: productos, error: dbError } = await supabase
+    // 1. Obtenemos los productos con sus links de fotos/PDFs
+    const { data: productos } = await supabase
       .from("productos")
-      .select(
-        "nombre, precio, stock, categoria, descripcion_tecnica, imagen_url",
-      );
+      .select("nombre, precio, stock, descripcion_tecnica, imagen_url");
 
-    if (dbError) throw dbError;
+    // 2. Formateamos el catálogo para la IA
+    const catalogoVisual = productos
+      ?.map((p) => {
+        const tipoArchivo = p.imagen_url?.toLowerCase().endsWith(".pdf")
+          ? "PDF (Manual/Catálogo)"
+          : "Imagen/Foto";
+        return `- PRODUCTO: ${p.nombre}
+        PRECIO: $${p.precio}
+        STOCK: ${p.stock}
+        INFO: ${p.descripcion_tecnica}
+        ARCHIVO (${tipoArchivo}): ${p.imagen_url || "No disponible"}`;
+      })
+      .join("\n\n");
 
-    // 2. Creamos el contexto de inventario para la IA
-    const inventarioContexto = productos
-      ?.map(
-        (p) =>
-          `- ${p.nombre} (${p.categoria}): Precio $${p.precio}, Stock ${p.stock} unidades. Ficha: ${p.descripcion_tecnica}. Imagen: ${p.imagen_url || "No disponible"}`,
-      )
-      .join("\n");
-
-    // 3. Llamada a Groq con el MODELO ACTUALIZADO
+    // 3. System Prompt: Instrucciones de entrega de archivos
     const response = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `Eres el Asistente Experto de "Dental Boss". Tu objetivo es asesorar a odontólogos y vender equipos de alta gama.
+          content: `Eres el Agente Comercial de "Dental Boss". Tienes acceso directo al inventario y a los archivos del servidor (Bucket).
           
-          REGLAS DE ORO:
-          1. Usa el siguiente inventario REAL para responder. Si no ves un producto aquí, di que no está disponible.
-          2. Si el cliente pregunta por stock o precio, sé exacto según la lista.
-          3. Si mencionas un producto que tiene imagen, puedes compartir el link.
-          4. Tono: Profesional, tecnológico y servicial.
+          REGLAS DE INTERACCIÓN:
+          1. Si el usuario pregunta por un equipo, descríbelo y OFRECE el link de la foto o PDF.
+          2. Si el usuario dice "pásame la foto", "quiero ver el catálogo" o similares, DEBES responder con el link exacto que aparece en el inventario.
+          3. IMPORTANTE: Presenta los links de forma limpia, por ejemplo: "Puedes ver la imagen aquí: [URL]".
+          4. Si el archivo es un PDF, aclara que es el manual técnico o catálogo detallado.
 
-          INVENTARIO ACTUAL:
-          ${inventarioContexto}`,
+          CATÁLOGO DISPONIBLE:
+          ${catalogoVisual}`,
         },
         { role: "user", content: userMessage },
       ],
-      model: "llama-3.3-70b-versatile", // <--- MODELO ACTUALIZADO Y POTENTE
-      temperature: 0.7,
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.5, // Menor temperatura para que sea más preciso con los links
     });
 
     return response.choices[0].message.content;
-  } catch (error: any) {
-    console.error("Error en el Agente:", error);
-
-    // Si el modelo versátil falla por cuotas, intentamos con el instant (más rápido)
-    if (error.status === 413 || error.status === 400) {
-      return "Estoy actualizando mi base de datos de precios. Por favor, pregúntame de nuevo en un momento.";
-    }
-
-    return "Lo siento, tuve un problema al consultar el catálogo. ¿Podrías repetir la pregunta?";
+  } catch (error) {
+    console.error("Error:", error);
+    return "Tuve un problema al conectar con el servidor de archivos.";
   }
 };
