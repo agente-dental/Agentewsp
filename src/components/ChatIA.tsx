@@ -1,29 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { chatWithAgente } from "../lib/groq";
-import { MessageSquare, Send, X, Bot } from "lucide-react";
+import { MessageSquare, Send, X, Bot, Sparkles } from "lucide-react";
 
 export const ChatIA = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>(
-    []
+    [
+      {
+        role: "assistant",
+        content:
+          "¡Hola! Soy el asistente de Dental Boss. ¿En qué equipo estás interesado hoy?",
+      },
+    ],
   );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll al recibir mensajes nuevos
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
     const userMsg = input;
-    const newMessages = [...messages, { role: "user", content: userMsg }];
-    setMessages(newMessages);
+    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setInput("");
     setLoading(true);
 
     try {
       const aiResponse = await chatWithAgente(userMsg);
-      setMessages([
-        ...newMessages,
-        { role: "assistant", content: aiResponse || "" },
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: aiResponse || "No pude procesar tu solicitud.",
+        },
       ]);
     } catch (error) {
       console.error(error);
@@ -35,30 +51,40 @@ export const ChatIA = () => {
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {isOpen ? (
-        <div className="bg-white w-96 h-[500px] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
-          <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Bot size={20} className="text-blue-400" />
-              <span className="font-bold text-sm">Auditoría de Agente IA</span>
+        <div className="bg-white w-[350px] md:w-96 h-[550px] rounded-[32px] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
+          {/* Header */}
+          <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/30">
+                <Bot size={20} className="text-white" />
+              </div>
+              <div>
+                <span className="font-black text-sm block">DENTAL BOSS AI</span>
+                <span className="text-[10px] text-green-400 font-bold uppercase tracking-wider">
+                  En línea
+                </span>
+              </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="hover:text-slate-400"
+              className="hover:rotate-90 transition-transform"
             >
               <X size={20} />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+          {/* Chat Body */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50"
+          >
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={`flex ${
-                  m.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                  className={`max-w-[85%] p-4 rounded-2xl text-sm font-medium shadow-sm ${
                     m.role === "user"
                       ? "bg-blue-600 text-white"
                       : "bg-white border border-slate-200 text-slate-700"
@@ -69,26 +95,30 @@ export const ChatIA = () => {
               </div>
             ))}
             {loading && (
-              <div className="text-xs text-slate-400 animate-pulse">
-                Agente pensando...
+              <div className="flex items-center gap-2 text-xs text-slate-400 font-bold italic p-2">
+                <Sparkles size={14} className="animate-pulse text-blue-500" />
+                El Agente está consultando el inventario...
               </div>
             )}
           </div>
 
-          <div className="p-4 bg-white border-t border-slate-100 flex gap-2">
+          {/* Input */}
+          <div className="p-4 bg-white border-t border-slate-100 flex gap-2 items-center">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Pregunta al agente..."
-              className="flex-1 text-sm outline-none px-2"
+              placeholder="¿Qué stock hay de resina?"
+              className="flex-1 text-sm outline-none px-4 py-3 bg-slate-100 rounded-xl focus:ring-2 focus:ring-blue-500 transition-all"
               disabled={loading}
             />
             <button
               onClick={handleSend}
               disabled={loading}
-              className={`p-2 rounded-xl text-white ${
-                loading ? "bg-slate-400" : "bg-blue-600 hover:bg-blue-700"
+              className={`p-3 rounded-xl text-white transition-all ${
+                loading
+                  ? "bg-slate-300"
+                  : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
               }`}
             >
               <Send size={18} />
@@ -98,10 +128,12 @@ export const ChatIA = () => {
       ) : (
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-slate-900 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform flex items-center gap-2"
+          className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 border-b-4 border-blue-600"
         >
-          <MessageSquare />
-          <span className="font-bold text-sm px-1">Hablar con Agente</span>
+          <MessageSquare size={24} />
+          <span className="font-black text-sm uppercase tracking-tighter">
+            Consultar Stock
+          </span>
         </button>
       )}
     </div>

@@ -1,78 +1,61 @@
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
 
-// Verificamos la API Key desde las variables de entorno de Vite
-const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-
-// Inicializamos el cliente de Groq
 const groq = new Groq({
-  apiKey: apiKey || "",
-  dangerouslyAllowBrowser: true, // Necesario para que funcione en el Dashboard
+  apiKey: import.meta.env.VITE_GROQ_API_KEY,
+  dangerouslyAllowBrowser: true,
 });
 
-/**
- * Función principal para que el Agente IA procese consultas.
- * Utiliza el catálogo de Supabase como contexto y la personalidad del agent.md.
- */
 export const chatWithAgente = async (userMessage: string) => {
-  if (!apiKey) {
-    console.error("Falta VITE_GROQ_API_KEY en el archivo .env");
-    return "⚠️ Error: La API Key de Groq no está configurada.";
-  }
-
   try {
-    // 1. Obtener los productos reales de Supabase (Sillones, Scanners, Equipamiento)
-    const { data: productos, error } = await supabase
+    // 1. Extraemos los datos frescos de la base de datos (Usando tus nuevas columnas)
+    const { data: productos, error: dbError } = await supabase
       .from("productos")
-      .select("*");
+      .select(
+        "nombre, precio, stock, categoria, descripcion_tecnica, imagen_url",
+      );
 
-    if (error) throw error;
+    if (dbError) throw dbError;
 
-    // 2. Formatear el catálogo para el contexto de la IA
-    const contextoCatalogo = productos
+    // 2. Creamos el contexto de inventario para la IA
+    const inventarioContexto = productos
       ?.map(
         (p) =>
-          `- ${p.nombre} (SKU: ${p.sku}): $${p.precio_venta}. ` +
-          `Stock Local: ${p.stock_local}, Stock Mayorista: ${p.stock_mayorista}. ` +
-          `Especificaciones: ${p.descripcion_tecnica}`
+          `- ${p.nombre} (${p.categoria}): Precio $${p.precio}, Stock ${p.stock} unidades. Ficha: ${p.descripcion_tecnica}. Imagen: ${p.imagen_url || "No disponible"}`,
       )
       .join("\n");
 
-    // 3. Prompt del Sistema (Basado en tu agent.md)
-    const systemPrompt = `
-      Eres el AGENTE IA EXPERTO de una distribuidora dental de alta gama.
-      
-      OBJETIVO:
-      Asesorar a odontólogos sobre el catálogo y cerrar ventas o agendar demos.
-
-      REGLAS DE ORO (AGENT.MD):
-      1. PRIORIDAD DE STOCK: Si 'Stock Local' > 0, ofrece "Entrega inmediata". 
-         Si es 0 pero 'Stock Mayorista' > 0, ofrece "Bajo pedido (48-72hs)".
-      2. SENTIDO DE URGENCIA: Si el stock local es <= 5, menciona sutilmente que son las últimas unidades.
-      3. PRECIOS: Si el precio es $0, NO lo menciones; solicita datos de contacto para un presupuesto formal.
-      4. TONO: Ejecutivo, técnico y resolutivo. Evita respuestas excesivamente largas.
-      5. PILARES: Conocimiento profundo en Sillones (ergonomía), Scanners (precisión) y Equipamiento.
-
-      CATÁLOGO ACTUALIZADO EN TIEMPO REAL:
-      ${contextoCatalogo}
-    `;
-
-    // 4. Llamada a la API de Groq
+    // 3. Llamada a Groq con el MODELO ACTUALIZADO
     const response = await groq.chat.completions.create({
       messages: [
-        { role: "system", content: systemPrompt },
+        {
+          role: "system",
+          content: `Eres el Asistente Experto de "Dental Boss". Tu objetivo es asesorar a odontólogos y vender equipos de alta gama.
+          
+          REGLAS DE ORO:
+          1. Usa el siguiente inventario REAL para responder. Si no ves un producto aquí, di que no está disponible.
+          2. Si el cliente pregunta por stock o precio, sé exacto según la lista.
+          3. Si mencionas un producto que tiene imagen, puedes compartir el link.
+          4. Tono: Profesional, tecnológico y servicial.
+
+          INVENTARIO ACTUAL:
+          ${inventarioContexto}`,
+        },
         { role: "user", content: userMessage },
       ],
-      model: "llama-3.3-70b-versatile", // Modelo optimizado para velocidad y precisión
-      temperature: 0.5, // Balance entre creatividad y precisión técnica
+      model: "llama-3.3-70b-versatile", // <--- MODELO ACTUALIZADO Y POTENTE
+      temperature: 0.7,
     });
 
-    return (
-      response.choices[0].message.content ||
-      "No tengo una respuesta clara para eso."
-    );
+    return response.choices[0].message.content;
   } catch (error: any) {
-    console.error("Error en el Agente Groq:", error);
-    return "Lo siento, el sistema de inteligencia de ventas está temporalmente fuera de línea. Revisa la consola.";
+    console.error("Error en el Agente:", error);
+
+    // Si el modelo versátil falla por cuotas, intentamos con el instant (más rápido)
+    if (error.status === 413 || error.status === 400) {
+      return "Estoy actualizando mi base de datos de precios. Por favor, pregúntame de nuevo en un momento.";
+    }
+
+    return "Lo siento, tuve un problema al consultar el catálogo. ¿Podrías repetir la pregunta?";
   }
 };
