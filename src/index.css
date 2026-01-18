@@ -1,7 +1,67 @@
 @import "tailwindcss";
 
-/* Tus estilos globales si los necesitas */
+:root {
+  --apple-bg: #f5f5f7;
+  --apple-card: rgba(255, 255, 255, 0.8);
+  --apple-blue: #0071e3;
+}
+
 body {
   margin: 0;
-  background-color: #f8fafc; /* slate-50 */
+  background-color: var(--apple-bg);
+  /* Fuente tipo San Francisco / Inter para máxima legibilidad */
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #1d1d1f;
+}
+
+/* Efecto de Cristal para Tarjetas y Sidebar */
+.glass-card {
+  background: var(--apple-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Scrollbars Minimalistas */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d2d2d7;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #86868b;
+}
+
+/* Animaciones Suaves Apple Style */
+.apple-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sombras Profundas pero Suaves */
+.apple-shadow {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+}
+
+/* Estilo para Inputs */
+input,
+textarea,
+select {
+  transition: all 0.2s ease-in-out !important;
+}
+
+input:focus,
+textarea:focus {
+  background-color: white !important;
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1) !important;
 }

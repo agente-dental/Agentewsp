@@ -10,9 +10,7 @@ import {
   ImageIcon,
   FileText,
   Paperclip,
-  CheckCircle2,
   Package,
-  DollarSign,
 } from "lucide-react";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
@@ -30,15 +28,13 @@ export const Inventory = () => {
     precio: "",
     stock: "",
     descripcion_tecnica: "",
-    archivos: [], // Para manejo local de archivos nuevos
   });
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("productos")
       .select("*, catalogos_archivos(*)")
       .order("created_at", { ascending: false });
-
     if (data) setProducts(data);
     setLoading(false);
   };
@@ -47,44 +43,59 @@ export const Inventory = () => {
     fetchProducts();
   }, []);
 
-  // --- LÓGICA DE EXTRACCIÓN DE TEXTO PDF ---
-  const extractTextFromPDF = async (file: File) => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = "";
-    const maxPages = Math.min(pdf.numPages, 40);
-
-    for (let i = 1; i <= maxPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
+  const deleteProduct = async (id: string) => {
+    if (!confirm("¿Eliminar este producto y sus archivos?")) return;
+    try {
+      await supabase.from("productos").delete().eq("id", id);
+      fetchProducts();
+    } catch (err: any) {
+      alert(err.message);
     }
-    return fullText;
   };
 
-  // --- MANEJO DE SUBIDA A STORAGE ---
+  const deleteSingleFile = async (fileId: string, filePath: string) => {
+    if (!confirm("¿Eliminar este archivo?")) return;
+    try {
+      const storagePath = filePath.split("catalogos/")[1];
+      if (storagePath)
+        await supabase.storage.from("catalogos").remove([storagePath]);
+      await supabase.from("catalogos_archivos").delete().eq("id", fileId);
+      fetchProducts();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleFileUpload = async (productId: string, files: FileList) => {
     setUploading(true);
     for (const file of Array.from(files)) {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${Date.now()}-${file.name.replace(/\s/g, "_")}`;
       const filePath = `${productId}/${fileName}`;
-
       const { error: uploadError } = await supabase.storage
         .from("catalogos")
         .upload(filePath, file);
-
       if (uploadError) continue;
-
       const {
         data: { publicUrl },
       } = supabase.storage.from("catalogos").getPublicUrl(filePath);
 
       let extraido = "";
       if (file.type === "application/pdf") {
-        extraido = await extractTextFromPDF(file);
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          let fullText = "";
+          for (let i = 1; i <= Math.min(pdf.numPages, 40); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            fullText +=
+              content.items.map((item: any) => item.str).join(" ") + " ";
+          }
+          extraido = fullText;
+        } catch (e) {
+          console.error(e);
+        }
       }
-
       await supabase.from("catalogos_archivos").insert([
         {
           producto_id: productId,
@@ -95,6 +106,7 @@ export const Inventory = () => {
       ]);
     }
     setUploading(false);
+    fetchProducts();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,30 +121,20 @@ export const Inventory = () => {
 
     try {
       let productId = editingId;
-
       if (editingId) {
-        const { error } = await supabase
-          .from("productos")
-          .update(payload)
-          .eq("id", editingId);
-        if (error) throw error;
+        await supabase.from("productos").update(payload).eq("id", editingId);
       } else {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("productos")
           .insert([payload])
           .select();
-        if (error) throw error;
-        productId = data[0].id;
+        productId = data?.[0].id;
       }
-
-      // Si hay archivos seleccionados, subirlos ahora
       const fileInput = document.getElementById(
         "file-upload",
       ) as HTMLInputElement;
-      if (fileInput?.files?.length && productId) {
+      if (fileInput?.files?.length && productId)
         await handleFileUpload(productId, fileInput.files);
-      }
-
       setShowForm(false);
       setEditingId(null);
       setFormData({
@@ -143,9 +145,8 @@ export const Inventory = () => {
         descripcion_tecnica: "",
       });
       fetchProducts();
-      alert("¡Guardado y archivos procesados!");
     } catch (err: any) {
-      alert("Error: " + err.message);
+      alert(err.message);
     }
   };
 
@@ -163,10 +164,10 @@ export const Inventory = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-[24px] shadow-sm border border-slate-100">
-        <h2 className="text-3xl font-black italic uppercase tracking-tighter">
+    <div className="space-y-6 animate-in fade-in duration-700">
+      {/* HEADER */}
+      <div className="glass-card apple-shadow p-6 rounded-[24px] flex justify-between items-center">
+        <h2 className="text-3xl font-black italic uppercase tracking-tighter text-slate-800">
           Inventario
         </h2>
         <button
@@ -174,21 +175,21 @@ export const Inventory = () => {
             setEditingId(null);
             setShowForm(!showForm);
           }}
-          className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs"
+          className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black uppercase text-xs apple-transition hover:scale-105"
         >
           {showForm ? "Cerrar" : "Nuevo Registro"}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white p-8 rounded-[32px] shadow-xl border-2 border-blue-50 animate-in slide-in-from-top-4 duration-300">
+        <div className="glass-card apple-shadow p-8 rounded-[32px] space-y-6 animate-in slide-in-from-top-4 duration-300">
           <form
             onSubmit={handleSubmit}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             <input
-              placeholder="Nombre del Equipo"
-              className="p-4 rounded-xl border-2 border-slate-50 font-bold focus:border-blue-500 outline-none"
+              placeholder="Nombre..."
+              className="p-4 rounded-xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-blue-500"
               value={formData.nombre}
               onChange={(e) =>
                 setFormData({ ...formData, nombre: e.target.value })
@@ -196,7 +197,7 @@ export const Inventory = () => {
               required
             />
             <select
-              className="p-4 rounded-xl border-2 border-slate-50 font-bold bg-white"
+              className="p-4 rounded-xl bg-slate-50 border-none font-bold"
               value={formData.categoria}
               onChange={(e) =>
                 setFormData({ ...formData, categoria: e.target.value })
@@ -208,8 +209,8 @@ export const Inventory = () => {
             </select>
             <input
               type="number"
-              placeholder="Precio"
-              className="p-4 rounded-xl border-2 border-slate-50 font-bold"
+              placeholder="Precio ($)"
+              className="p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
               value={formData.precio}
               onChange={(e) =>
                 setFormData({ ...formData, precio: e.target.value })
@@ -218,36 +219,60 @@ export const Inventory = () => {
             <input
               type="number"
               placeholder="Stock"
-              className="p-4 rounded-xl border-2 border-slate-50 font-bold"
+              className="p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
               value={formData.stock}
               onChange={(e) =>
                 setFormData({ ...formData, stock: e.target.value })
               }
             />
 
-            {/* ZONA DE CARGA DE ARCHIVOS */}
-            <div className="md:col-span-2 border-2 border-dashed border-slate-200 p-8 rounded-[24px] text-center bg-slate-50/50 hover:bg-blue-50/50 transition-all cursor-pointer relative">
+            {editingId &&
+              products.find((p) => p.id === editingId)?.catalogos_archivos
+                ?.length > 0 && (
+                <div className="md:col-span-2 space-y-2">
+                  <p className="text-[10px] font-black uppercase text-slate-400">
+                    Archivos actuales
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {products
+                      .find((p) => p.id === editingId)
+                      .catalogos_archivos.map((file: any) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-white"
+                        >
+                          <div className="flex items-center gap-2 truncate text-xs font-bold">
+                            <FileText size={14} /> {file.nombre_archivo}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteSingleFile(file.id, file.url)}
+                            className="text-slate-300 hover:text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+            <div className="md:col-span-2 border-2 border-dashed border-slate-200 p-6 rounded-2xl text-center relative hover:bg-blue-50/50">
               <input
                 type="file"
                 id="file-upload"
                 multiple
-                accept="application/pdf,image/*"
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
-              <div className="flex flex-col items-center gap-2">
-                <Paperclip className="text-blue-500" size={32} />
-                <p className="font-black uppercase text-[10px] text-slate-400">
-                  Adjuntar Catálogos PDF o Imágenes
-                </p>
-                <p className="text-[9px] text-slate-300 font-bold italic">
-                  La IA leerá automáticamente hasta 40 páginas de cada PDF
-                </p>
-              </div>
+              <Paperclip className="mx-auto text-blue-500 mb-2" />
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                Añadir catálogos o fotos
+              </p>
             </div>
 
             <textarea
-              placeholder="Descripción Técnica"
-              className="md:col-span-2 p-4 rounded-xl border-2 border-slate-50 min-h-[100px]"
+              placeholder="Descripción IA..."
+              className="md:col-span-2 p-4 rounded-xl bg-slate-50 border-none min-h-[100px]"
               value={formData.descripcion_tecnica}
               onChange={(e) =>
                 setFormData({
@@ -256,34 +281,36 @@ export const Inventory = () => {
                 })
               }
             />
-
             <button
               disabled={uploading}
               type="submit"
-              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest flex justify-center items-center gap-2"
+              className="md:col-span-2 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest apple-transition hover:bg-black"
             >
               {uploading ? (
-                <Loader2 className="animate-spin" />
+                <Loader2 className="animate-spin mx-auto" />
               ) : editingId ? (
                 "Actualizar"
               ) : (
-                "Guardar Todo"
+                "Guardar"
               )}
             </button>
           </form>
         </div>
       )}
 
-      {/* TABLA CON VISUALIZACIÓN DE ARCHIVOS */}
-      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
+      {/* TABLA CON COLUMNA DE STOCK RESTAURADA */}
+      <div className="glass-card apple-shadow rounded-[32px] overflow-hidden border border-slate-100">
         <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b">
+          <thead className="bg-slate-50/50 border-b border-slate-100">
             <tr>
               <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic">
-                Equipo y Archivos
+                Equipo
               </th>
               <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic">
                 Precio
+              </th>
+              <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic">
+                Stock
               </th>
               <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic text-right">
                 Acciones
@@ -294,31 +321,40 @@ export const Inventory = () => {
             {products.map((p) => (
               <tr
                 key={p.id}
-                className="border-b border-slate-50 hover:bg-slate-50/50"
+                className="border-b border-slate-50 hover:bg-slate-50/50 apple-transition"
               >
                 <td className="p-6">
-                  <p className="font-black text-slate-800 text-lg uppercase italic">
+                  <p className="font-black text-slate-800 text-lg uppercase italic tracking-tighter">
                     {p.nombre}
                   </p>
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1">
-                      <FileText size={10} /> {p.catalogos_archivos?.length || 0}{" "}
-                      Manuales/Fotos
-                    </span>
-                    {p.stock <= 0 && (
-                      <span className="text-[10px] font-black text-red-500 uppercase bg-red-50 px-2 py-0.5 rounded">
-                        Sin Stock
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                    <FileText size={10} /> {p.catalogos_archivos?.length || 0}{" "}
+                    Archivos
+                  </span>
                 </td>
                 <td className="p-6 font-bold text-slate-600">${p.precio}</td>
-                <td className="p-6 text-right">
+                <td className="p-6">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${Number(p.stock) > 0 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-500"}`}
+                    ></div>
+                    <span className="font-black text-slate-700 text-sm tracking-tight">
+                      {p.stock || "0"}
+                    </span>
+                  </div>
+                </td>
+                <td className="p-6 text-right flex justify-end gap-2">
                   <button
                     onClick={() => handleEdit(p)}
-                    className="p-4 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all"
+                    className="p-4 bg-slate-50/50 text-slate-400 hover:text-blue-600 rounded-2xl apple-transition border border-white shadow-sm"
                   >
-                    <Edit3 size={20} />
+                    <Edit3 size={18} />
+                  </button>
+                  <button
+                    onClick={() => deleteProduct(p.id)}
+                    className="p-4 bg-slate-50/50 text-slate-300 hover:text-red-500 rounded-2xl apple-transition border border-white shadow-sm"
+                  >
+                    <Trash2 size={18} />
                   </button>
                 </td>
               </tr>

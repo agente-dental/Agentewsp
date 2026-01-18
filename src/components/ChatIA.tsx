@@ -17,12 +17,11 @@ import {
 } from "lucide-react";
 
 export const ChatIA = () => {
-  // --- ESTADOS DE CONTROL ---
+  // --- ESTADOS DE CONTROL (Sin cambios) ---
   const [agenteActivo, setAgenteActivo] = useState(true);
   const [nuevaOrden, setNuevaOrden] = useState("");
   const [ordenes, setOrdenes] = useState<any[]>([]);
 
-  // --- ESTADOS DEL CHAT SIMULADOR ---
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>(
     [
@@ -37,13 +36,11 @@ export const ChatIA = () => {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll al recibir mensajes
   useEffect(() => {
     if (scrollRef.current)
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  // Cargar órdenes al iniciar
   useEffect(() => {
     fetchOrdenes();
   }, []);
@@ -87,9 +84,7 @@ export const ChatIA = () => {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setLoading(true);
-
     try {
-      // Enviamos el mensaje y el estado del botón ON/OFF
       const aiResponse = await chatWithAgente(userMsg, agenteActivo);
       setMessages((prev) => [
         ...prev,
@@ -103,37 +98,37 @@ export const ChatIA = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      {/* HEADER: CONTROL ON/OFF */}
-      <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
+      {/* HEADER: APPLE STYLE ON/OFF */}
+      <div className="glass-card apple-shadow p-8 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-6 apple-transition">
         <div>
           <h1 className="text-4xl font-black text-slate-800 italic uppercase tracking-tighter leading-none">
-            Panel Agente
+            Agente Inteligente
           </h1>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 italic">
-            Status: {agenteActivo ? "IA Operativa" : "IA en Pausa"}
+          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2 italic">
+            Dashboard Operativo • {agenteActivo ? "En Línea" : "En Pausa"}
           </p>
         </div>
         <button
           onClick={() => setAgenteActivo(!agenteActivo)}
-          className={`flex items-center gap-4 px-10 py-5 rounded-2xl font-black uppercase text-sm transition-all shadow-xl ${
+          className={`apple-transition flex items-center gap-4 px-10 py-5 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 ${
             agenteActivo
-              ? "bg-green-500 text-white ring-8 ring-green-50 shadow-green-100"
+              ? "bg-green-500 text-white shadow-green-200/50 ring-8 ring-green-50"
               : "bg-slate-200 text-slate-500 shadow-none"
           }`}
         >
-          <Power size={20} className={agenteActivo ? "animate-pulse" : ""} />
-          {agenteActivo ? "Agente ONLINE" : "Agente OFFLINE"}
+          <Power size={18} className={agenteActivo ? "animate-pulse" : ""} />
+          {agenteActivo ? "Agente Online" : "Agente Offline"}
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* COLUMNA GESTIÓN DE ÓRDENES */}
+        {/* COLUMNA GESTIÓN DE ÓRDENES (Glass Effect) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-8 rounded-[32px] border-2 border-blue-50 shadow-sm space-y-6">
+          <div className="glass-card apple-shadow p-8 rounded-[32px] space-y-6 border-none">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-xl text-white">
-                <Zap size={24} />
+              <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-200">
+                <Zap size={22} />
               </div>
               <h3 className="text-xl font-black uppercase italic text-slate-800 tracking-tighter">
                 Órdenes Operativas
@@ -142,58 +137,58 @@ export const ChatIA = () => {
 
             <div className="flex gap-2">
               <input
-                placeholder="Ej: 'Bono de $500 de regalo en Fussen 6500'..."
-                className="flex-1 p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ej: 'Promoción especial para Fussen 6500 hoy'..."
+                className="flex-1 p-5 bg-white/50 rounded-2xl border-none font-bold text-sm outline-none apple-transition focus:bg-white"
                 value={nuevaOrden}
                 onChange={(e) => setNuevaOrden(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && agregarOrden()}
               />
               <button
                 onClick={agregarOrden}
-                className="bg-blue-600 text-white p-4 rounded-xl shadow-lg hover:bg-blue-700 transition-all"
+                className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg hover:bg-black active:scale-95 apple-transition"
               >
                 <Plus size={24} />
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
               {ordenes.map((orden) => (
                 <div
                   key={orden.id}
-                  className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${
+                  className={`apple-transition p-5 rounded-[24px] border flex items-center justify-between ${
                     orden.activa
-                      ? "bg-white border-blue-100 shadow-sm"
-                      : "bg-slate-50 border-transparent opacity-60"
+                      ? "bg-white/80 border-blue-50 apple-shadow"
+                      : "bg-slate-100/50 border-transparent opacity-50"
                   }`}
                 >
                   <div className="flex gap-4 items-center flex-1">
                     <button
                       onClick={() => toggleOrden(orden.id, orden.activa)}
-                      className={
-                        orden.activa ? "text-blue-600" : "text-slate-300"
-                      }
+                      className={`apple-transition ${orden.activa ? "text-blue-600" : "text-slate-300"}`}
                     >
                       {orden.activa ? (
-                        <ToggleRight size={32} />
+                        <ToggleRight size={36} />
                       ) : (
-                        <ToggleLeft size={32} />
+                        <ToggleLeft size={36} />
                       )}
                     </button>
                     <div>
                       <p
-                        className={`text-sm font-bold ${orden.activa ? "text-slate-700" : "text-slate-400 line-through"}`}
+                        className={`text-sm font-bold tracking-tight ${orden.activa ? "text-slate-700" : "text-slate-400 line-through"}`}
                       >
                         {orden.contenido}
                       </p>
-                      <span className="text-[9px] font-black text-slate-300 uppercase flex items-center gap-1 mt-1">
-                        <Clock size={10} />{" "}
-                        {new Date(orden.created_at).toLocaleDateString()}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock size={10} className="text-slate-300" />
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                          {new Date(orden.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <button
                     onClick={() => eliminarOrden(orden.id)}
-                    className="p-2 text-slate-300 hover:text-red-500 transition-colors ml-4"
+                    className="p-2 text-slate-300 hover:text-red-400 apple-transition ml-4"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -203,46 +198,56 @@ export const ChatIA = () => {
           </div>
         </div>
 
-        {/* COLUMNA MÉTRICAS */}
+        {/* COLUMNA MÉTRICAS (Premium Dark & Blue) */}
         <div className="space-y-6">
-          <div className="bg-slate-900 p-8 rounded-[32px] text-white">
-            <Flame className="text-orange-500 mb-4" size={32} />
-            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+          <div className="bg-slate-900 apple-shadow p-8 rounded-[32px] text-white relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl group-hover:bg-orange-500/20 apple-transition"></div>
+            <Flame className="text-orange-500 mb-6 relative z-10" size={32} />
+            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] relative z-10">
               Cierre Estimado
             </p>
-            <p className="text-4xl font-black italic tracking-tighter">82%</p>
-          </div>
-          <div className="bg-blue-600 p-8 rounded-[32px] text-white">
-            <Activity className="text-blue-100 mb-4" size={32} />
-            <p className="text-[10px] font-black uppercase text-blue-300 tracking-widest">
-              Consultas Totales
+            <p className="text-5xl font-black italic tracking-tighter mt-1 relative z-10">
+              82%
             </p>
-            <p className="text-4xl font-black italic tracking-tighter">147</p>
+          </div>
+
+          <div className="bg-blue-600 apple-shadow p-8 rounded-[32px] text-white relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 apple-transition"></div>
+            <Activity className="text-blue-100 mb-6 relative z-10" size={32} />
+            <p className="text-[10px] font-black uppercase text-blue-200 tracking-[0.2em] relative z-10">
+              Consultas Semanales
+            </p>
+            <p className="text-5xl font-black italic tracking-tighter mt-1 relative z-10">
+              1.4k
+            </p>
           </div>
         </div>
       </div>
 
-      {/* --- VENTANA DE CHAT FLOTANTE RECUPERADA --- */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* CHAT FLOTANTE: GLASSMORPHISM */}
+      <div className="fixed bottom-8 right-8 z-50">
         {isOpen ? (
-          <div className="w-96 h-[550px] bg-white rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-5 bg-slate-900 text-white flex justify-between items-center">
+          <div className="w-[400px] h-[600px] glass-card apple-shadow rounded-[32px] flex flex-col overflow-hidden animate-in zoom-in duration-300 border-white/40">
+            <div className="p-6 bg-slate-900/95 text-white flex justify-between items-center backdrop-blur-md">
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-3 h-3 rounded-full ${agenteActivo ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
+                  className={`w-2.5 h-2.5 rounded-full ${agenteActivo ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
                 ></div>
-                <span className="text-[10px] font-black uppercase italic tracking-widest">
-                  Simulador Agente
+                <span className="text-[10px] font-black uppercase italic tracking-[0.15em]">
+                  Agente de Simulación
                 </span>
               </div>
-              <button onClick={() => setIsOpen(false)}>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="hover:rotate-90 apple-transition"
+              >
                 <X size={20} />
               </button>
             </div>
 
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50"
+              className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 custom-scrollbar"
             >
               {messages.map((m, i) => (
                 <div
@@ -250,10 +255,10 @@ export const ChatIA = () => {
                   className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] p-4 rounded-2xl text-xs font-bold shadow-sm ${
+                    className={`max-w-[85%] p-4 rounded-[22px] text-xs font-bold leading-relaxed shadow-sm ${
                       m.role === "user"
                         ? "bg-blue-600 text-white rounded-tr-none"
-                        : "bg-white text-slate-700 rounded-tl-none border border-slate-100"
+                        : "bg-white text-slate-700 rounded-tl-none border border-white"
                     }`}
                   >
                     {m.content}
@@ -261,34 +266,34 @@ export const ChatIA = () => {
                 </div>
               ))}
               {loading && (
-                <div className="text-[10px] font-black text-slate-400 p-2 animate-pulse uppercase italic">
-                  Analizando órdenes...
+                <div className="text-[10px] font-black text-slate-400 p-2 animate-pulse uppercase italic tracking-widest text-center">
+                  IA Procesando órdenes activas...
                 </div>
               )}
             </div>
 
-            <div className="p-4 bg-white border-t flex gap-2">
+            <div className="p-5 bg-white/80 backdrop-blur-md border-t border-white/20 flex gap-2">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Pregunta por el Fussen 6500..."
-                className="flex-1 text-sm outline-none px-4 py-3 bg-slate-100 rounded-xl"
+                className="flex-1 text-sm outline-none px-5 py-4 bg-slate-100/50 rounded-[20px] font-bold apple-transition focus:bg-white focus:ring-4 focus:ring-blue-50"
                 disabled={loading}
               />
               <button
                 onClick={handleSend}
                 disabled={loading}
-                className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"
+                className="p-4 bg-blue-600 text-white rounded-[20px] shadow-lg shadow-blue-200 apple-transition hover:bg-blue-700 active:scale-90"
               >
-                <Send size={18} />
+                <Send size={20} />
               </button>
             </div>
           </div>
         ) : (
           <button
             onClick={() => setIsOpen(true)}
-            className="bg-slate-900 text-white p-5 rounded-3xl shadow-2xl flex items-center gap-3 hover:scale-105 transition-all border-b-4 border-blue-600 font-black uppercase text-xs tracking-widest italic"
+            className="bg-slate-900 text-white p-6 rounded-[28px] shadow-2xl flex items-center gap-4 hover:scale-[1.05] active:scale-95 apple-transition border-b-4 border-blue-600 font-black uppercase text-xs tracking-[0.15em] italic"
           >
             <MessageSquare size={24} />
             Probar Agente
