@@ -1,14 +1,31 @@
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
+import { AGENTE_PROMPTS } from "./prompt.ts"; // Importamos la personalidad
 
 const groq = new Groq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
   dangerouslyAllowBrowser: true,
 });
 
-export const chatWithAgente = async (userMessage: string) => {
+// Añadimos el parámetro agenteActivo para controlar el botón ON/OFF
+export const chatWithAgente = async (
+  userMessage: string,
+  agenteActivo: boolean = true,
+) => {
   try {
-    // 1. Obtención de datos técnicos completos de la base de datos
+    // 1. Si el agente está apagado, devolvemos el mensaje de MODO_OFF sin gastar tokens de conocimiento
+    if (!agenteActivo) {
+      const responseOff = await groq.chat.completions.create({
+        messages: [
+          { role: "system", content: AGENTE_PROMPTS.MODO_OFF },
+          { role: "user", content: userMessage },
+        ],
+        model: "llama-3.3-70b-versatile",
+      });
+      return responseOff.choices[0].message.content;
+    }
+
+    // 2. Obtención de datos técnicos de Supabase (Core estable)
     const { data: productos, error } = await supabase.from("productos").select(`
         nombre, precio, stock, descripcion_tecnica, 
         catalogos_archivos (nombre_archivo, url, texto_extraido)
@@ -16,51 +33,34 @@ export const chatWithAgente = async (userMessage: string) => {
 
     if (error) throw error;
 
-    // 2. Construcción de la Base de Conocimiento enriquecida
     const conocimientoTecnico = productos
       ?.map((p: any) => {
         const manuales = p.catalogos_archivos
           ?.map(
             (a: any) =>
-              `### DOCUMENTO: ${a.nombre_archivo}
-               CONTENIDO TÉCNICO COMPLETO: ${a.texto_extraido || "Contenido no disponible para lectura directa."}
-               LINK DE ACCESO: ${a.url}`,
+              `### DOC: ${a.nombre_archivo} | TEXTO: ${a.texto_extraido || "No disponible"} | LINK: ${a.url}`,
           )
-          .join("\n\n");
-
-        return `---
-PRODUCTO: ${p.nombre}
-DESCRIPCIÓN COMERCIAL: ${p.descripcion_tecnica}
-DETALLES TÉCNICOS EXTRAÍDOS (HASTA 40 PÁGINAS):
-${manuales || "No hay manuales adjuntos para este equipo."}`;
+          .join("\n");
+        return `EQUIPO: ${p.nombre}\nINFO: ${p.descripcion_tecnica}\n${manuales}`;
       })
       .join("\n\n");
 
-    // 3. Configuración del Agente con prioridad en datos extraídos
+    // 3. Llamada a Groq usando la personalidad de prompts.ts
     const response = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `Eres el Asesor Técnico Principal de "Dental Boss". Tu función es resolver dudas complejas sobre equipos odontológicos basándote en sus manuales oficiales.
-          
-          REGLAS DE RESPUESTA:
-          1. PRIORIDAD: Ante dudas sobre especificaciones, mantenimiento o uso, DEBES buscar la respuesta en los "DETALLES TÉCNICOS EXTRAÍDOS".
-          2. CITAS: Si la información proviene de un manual, indícalo claramente: "Según la ficha técnica del equipo...".
-          3. ACCESO: Proporciona siempre el "LINK DE ACCESO" del documento para que el usuario pueda validarlo.
-          4. HONESTIDAD: Si un dato técnico no figura en el texto extraído, no lo inventes; sugiere al usuario revisar el manual completo mediante el link.
-
-          BASE DE CONOCIMIENTO TÉCNICA:
-          ${conocimientoTecnico}`,
+          content: AGENTE_PROMPTS.VENTAS_TECNICO(conocimientoTecnico),
         },
         { role: "user", content: userMessage },
       ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.2, // Temperatura baja para máxima precisión técnica
+      temperature: 0.2,
     });
 
     return response.choices[0].message.content;
   } catch (error) {
-    console.error("Error en Agente Dental:", error);
-    return "Tuve un problema al procesar los catálogos técnicos. Intenta de nuevo en unos instantes.";
+    console.error("Error en Agente:", error);
+    return "Error técnico en el servicio de IA.";
   }
 };

@@ -16,7 +16,6 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Verificación inmediata
     const getInitialSession = async () => {
       const {
         data: { session: currentSession },
@@ -24,10 +23,8 @@ function App() {
       setSession(currentSession);
       setLoading(false);
     };
-
     getInitialSession();
 
-    // 2. Suscripción a cambios
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
@@ -38,8 +35,6 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ESTO ES LO QUE EVITA EL PARPADEO:
-  // Mientras loading sea true, no mostramos NADA del Dashboard
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -48,26 +43,34 @@ function App() {
     );
   }
 
-  // Si después de cargar no hay sesión, mostramos el Login
   if (!session) {
     return <Login />;
   }
 
-  // Solo si hay sesión llegamos aquí
   return (
     <Router>
       <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
+        {/* El Sidebar se mantiene fijo a la izquierda */}
         <Sidebar />
-        <main className="flex-1 lg:ml-72 p-4 md:p-8 lg:p-12 pt-20 lg:pt-12">
-          {/* ... resto de tu contenido del Dashboard ... */}
-          <Routes>
-            <Route path="/" element={<Inventory />} />
-            <Route path="/inventario" element={<Inventory />} />
-            <Route path="/chats" element={<div>Métricas pronto</div>} />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+
+        {/* Contenedor principal con scroll independiente y margen para el Sidebar */}
+        <main className="flex-1 lg:ml-72 min-h-screen overflow-y-auto">
+          <div className="p-4 md:p-8 lg:p-12 pt-20 lg:pt-12">
+            <Routes>
+              {/* Ruta Raíz: Redirige a Inventario por defecto */}
+              <Route path="/" element={<Navigate to="/inventario" replace />} />
+
+              {/* Sección de Inventario: Solo muestra la tabla de productos */}
+              <Route path="/inventario" element={<Inventory />} />
+
+              {/* Sección Chat IA: Aquí y SOLO AQUÍ vive el Dashboard del Agente */}
+              <Route path="/chat" element={<ChatIA />} />
+
+              {/* Redirección por si el usuario entra a una ruta inexistente */}
+              <Route path="*" element={<Navigate to="/inventario" replace />} />
+            </Routes>
+          </div>
         </main>
-        <ChatIA />
       </div>
     </Router>
   );
