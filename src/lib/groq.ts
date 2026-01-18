@@ -1,19 +1,17 @@
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
-import { AGENTE_PROMPTS } from "./prompt.ts"; // Importamos la personalidad
+import { AGENTE_PROMPTS } from "./prompt.ts";
 
 const groq = new Groq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
   dangerouslyAllowBrowser: true,
 });
 
-// Añadimos el parámetro agenteActivo para controlar el botón ON/OFF
 export const chatWithAgente = async (
   userMessage: string,
   agenteActivo: boolean = true,
 ) => {
   try {
-    // 1. Si el agente está apagado, devolvemos el mensaje de MODO_OFF sin gastar tokens de conocimiento
     if (!agenteActivo) {
       const responseOff = await groq.chat.completions.create({
         messages: [
@@ -25,32 +23,42 @@ export const chatWithAgente = async (
       return responseOff.choices[0].message.content;
     }
 
-    // 2. Obtención de datos técnicos de Supabase (Core estable)
-    const { data: productos, error } = await supabase.from("productos").select(`
+    // Traemos Productos + Órdenes Activas en paralelo
+    const [prodRes, ordenesRes] = await Promise.all([
+      supabase.from("productos").select(`
         nombre, precio, stock, descripcion_tecnica, 
         catalogos_archivos (nombre_archivo, url, texto_extraido)
-      `);
+      `),
+      supabase.from("ordenes_diarias").select("contenido").eq("activa", true),
+    ]);
 
-    if (error) throw error;
+    const conocimiento: string =
+      prodRes.data
+        ?.map((p: any) => {
+          const manuales = p.catalogos_archivos
+            ?.map(
+              (a: any) =>
+                `### DOC: ${a.nombre_archivo} | TEXTO: ${a.texto_extraido || "No disponible"} | LINK: ${a.url}`,
+            )
+            .join("\n");
+          return `EQUIPO: ${p.nombre}\nPRECIO: ${p.precio}\nSTOCK: ${p.stock}\nINFO: ${p.descripcion_tecnica}\n${manuales}`;
+        })
+        .join("\n\n") ?? "";
 
-    const conocimientoTecnico = productos
-      ?.map((p: any) => {
-        const manuales = p.catalogos_archivos
-          ?.map(
-            (a: any) =>
-              `### DOC: ${a.nombre_archivo} | TEXTO: ${a.texto_extraido || "No disponible"} | LINK: ${a.url}`,
-          )
-          .join("\n");
-        return `EQUIPO: ${p.nombre}\nINFO: ${p.descripcion_tecnica}\n${manuales}`;
-      })
-      .join("\n\n");
+    const instruccionesActivas: string =
+      ordenesRes.data?.map((o) => `• ${o.contenido}`).join("\n") ??
+      "No hay órdenes activas.";
 
-    // 3. Llamada a Groq usando la personalidad de prompts.ts
     const response = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: AGENTE_PROMPTS.VENTAS_TECNICO(conocimientoTecnico),
+          content: `
+            ${AGENTE_PROMPTS.VENTAS_TECNICO(conocimiento)}
+            
+            🚨 ÓRDENES OPERATIVAS VIGENTES:
+            ${instruccionesActivas}
+          `,
         },
         { role: "user", content: userMessage },
       ],

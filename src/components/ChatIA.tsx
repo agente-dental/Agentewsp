@@ -1,30 +1,35 @@
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "../lib/supabase";
 import { chatWithAgente } from "../lib/groq";
 import {
   MessageSquare,
   Send,
   X,
-  Bot,
-  Sparkles,
-  ExternalLink,
-  FileText,
-  Image as ImageIcon,
+  Zap,
+  Plus,
+  Trash2,
   Power,
   Activity,
   Flame,
-  UserCheck,
-  ShieldAlert,
+  ToggleLeft,
+  ToggleRight,
+  Clock,
 } from "lucide-react";
 
 export const ChatIA = () => {
+  // --- ESTADOS DE CONTROL ---
   const [agenteActivo, setAgenteActivo] = useState(true);
+  const [nuevaOrden, setNuevaOrden] = useState("");
+  const [ordenes, setOrdenes] = useState<any[]>([]);
+
+  // --- ESTADOS DEL CHAT SIMULADOR ---
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>(
     [
       {
         role: "assistant",
         content:
-          "¡Hola! Sistema operativo. ¿En qué equipo dental puedo ayudarte hoy?",
+          "¡Hola! Soy el asistente de Dental Boss. ¿Qué equipo deseas probar hoy?",
       },
     ],
   );
@@ -32,44 +37,48 @@ export const ChatIA = () => {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll al recibir mensajes
   useEffect(() => {
     if (scrollRef.current)
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, loading]);
 
-  // --- FUNCIÓN CRÍTICA: FORMATEADOR DE HIPERVÍNCULOS ---
-  const formatMessage = (content: string) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
+  // Cargar órdenes al iniciar
+  useEffect(() => {
+    fetchOrdenes();
+  }, []);
 
-    return parts.map((part, index) => {
-      if (part.match(urlRegex)) {
-        const isPDF = part.toLowerCase().includes(".pdf");
-        return (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 my-2 p-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 hover:bg-blue-100 transition-all w-fit group"
-          >
-            {isPDF ? <FileText size={18} /> : <ImageIcon size={18} />}
-            <span className="text-xs font-black uppercase tracking-tighter">
-              {isPDF ? "Abrir Catálogo PDF" : "Ver Imagen Técnica"}
-            </span>
-            <ExternalLink
-              size={14}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            />
-          </a>
-        );
-      }
-      return (
-        <span key={index} className="whitespace-pre-wrap">
-          {part}
-        </span>
-      );
-    });
+  const fetchOrdenes = async () => {
+    const { data } = await supabase
+      .from("ordenes_diarias")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (data) setOrdenes(data);
+  };
+
+  const agregarOrden = async () => {
+    if (!nuevaOrden.trim()) return;
+    const { error } = await supabase
+      .from("ordenes_diarias")
+      .insert([{ contenido: nuevaOrden }]);
+    if (!error) {
+      setNuevaOrden("");
+      fetchOrdenes();
+    }
+  };
+
+  const toggleOrden = async (id: string, estadoActual: boolean) => {
+    await supabase
+      .from("ordenes_diarias")
+      .update({ activa: !estadoActual })
+      .eq("id", id);
+    fetchOrdenes();
+  };
+
+  const eliminarOrden = async (id: string) => {
+    if (!confirm("¿Eliminar esta orden?")) return;
+    await supabase.from("ordenes_diarias").delete().eq("id", id);
+    fetchOrdenes();
   };
 
   const handleSend = async () => {
@@ -80,6 +89,7 @@ export const ChatIA = () => {
     setLoading(true);
 
     try {
+      // Enviamos el mensaje y el estado del botón ON/OFF
       const aiResponse = await chatWithAgente(userMsg, agenteActivo);
       setMessages((prev) => [
         ...prev,
@@ -93,97 +103,136 @@ export const ChatIA = () => {
   };
 
   return (
-    // Se añade h-full y flex para que no se "pegue" o desborde del layout de la App
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-      {/* HEADER DEL DASHBOARD */}
+    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+      {/* HEADER: CONTROL ON/OFF */}
       <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black text-slate-800 italic uppercase tracking-tighter">
-            Dashboard Agente
+          <h1 className="text-4xl font-black text-slate-800 italic uppercase tracking-tighter leading-none">
+            Panel Agente
           </h1>
-          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1 italic">
-            Estado: {agenteActivo ? "IA Activada" : "IA Desactivada"}
+          <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 italic">
+            Status: {agenteActivo ? "IA Operativa" : "IA en Pausa"}
           </p>
         </div>
         <button
           onClick={() => setAgenteActivo(!agenteActivo)}
-          className={`flex items-center gap-4 px-8 py-4 rounded-2xl font-black uppercase text-sm transition-all shadow-xl ${
+          className={`flex items-center gap-4 px-10 py-5 rounded-2xl font-black uppercase text-sm transition-all shadow-xl ${
             agenteActivo
-              ? "bg-green-500 text-white"
-              : "bg-slate-200 text-slate-500"
+              ? "bg-green-500 text-white ring-8 ring-green-50 shadow-green-100"
+              : "bg-slate-200 text-slate-500 shadow-none"
           }`}
         >
-          <Power size={20} />
-          {agenteActivo ? "ONLINE" : "OFFLINE"}
+          <Power size={20} className={agenteActivo ? "animate-pulse" : ""} />
+          {agenteActivo ? "Agente ONLINE" : "Agente OFFLINE"}
         </button>
       </div>
 
-      {/* MÉTRICAS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm">
-          <Flame className="text-orange-500 mb-2" />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Intención Venta
-          </p>
-          <p className="text-3xl font-black text-slate-800 tracking-tighter italic">
-            78%
-          </p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* COLUMNA GESTIÓN DE ÓRDENES */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white p-8 rounded-[32px] border-2 border-blue-50 shadow-sm space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600 p-2 rounded-xl text-white">
+                <Zap size={24} />
+              </div>
+              <h3 className="text-xl font-black uppercase italic text-slate-800 tracking-tighter">
+                Órdenes Operativas
+              </h3>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                placeholder="Ej: 'Bono de $500 de regalo en Fussen 6500'..."
+                className="flex-1 p-4 bg-slate-50 rounded-xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                value={nuevaOrden}
+                onChange={(e) => setNuevaOrden(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && agregarOrden()}
+              />
+              <button
+                onClick={agregarOrden}
+                className="bg-blue-600 text-white p-4 rounded-xl shadow-lg hover:bg-blue-700 transition-all"
+              >
+                <Plus size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+              {ordenes.map((orden) => (
+                <div
+                  key={orden.id}
+                  className={`p-5 rounded-2xl border flex items-center justify-between transition-all ${
+                    orden.activa
+                      ? "bg-white border-blue-100 shadow-sm"
+                      : "bg-slate-50 border-transparent opacity-60"
+                  }`}
+                >
+                  <div className="flex gap-4 items-center flex-1">
+                    <button
+                      onClick={() => toggleOrden(orden.id, orden.activa)}
+                      className={
+                        orden.activa ? "text-blue-600" : "text-slate-300"
+                      }
+                    >
+                      {orden.activa ? (
+                        <ToggleRight size={32} />
+                      ) : (
+                        <ToggleLeft size={32} />
+                      )}
+                    </button>
+                    <div>
+                      <p
+                        className={`text-sm font-bold ${orden.activa ? "text-slate-700" : "text-slate-400 line-through"}`}
+                      >
+                        {orden.contenido}
+                      </p>
+                      <span className="text-[9px] font-black text-slate-300 uppercase flex items-center gap-1 mt-1">
+                        <Clock size={10} />{" "}
+                        {new Date(orden.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => eliminarOrden(orden.id)}
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors ml-4"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm">
-          <Activity className="text-blue-500 mb-2" />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Consultas
-          </p>
-          <p className="text-3xl font-black text-slate-800 tracking-tighter italic">
-            124
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm">
-          <ShieldAlert className="text-red-500 mb-2" />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Ruido/Spam
-          </p>
-          <p className="text-3xl font-black text-slate-800 tracking-tighter italic">
-            12
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm">
-          <UserCheck className="text-green-500 mb-2" />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Filtrados
-          </p>
-          <p className="text-3xl font-black text-slate-800 tracking-tighter italic">
-            45
-          </p>
+
+        {/* COLUMNA MÉTRICAS */}
+        <div className="space-y-6">
+          <div className="bg-slate-900 p-8 rounded-[32px] text-white">
+            <Flame className="text-orange-500 mb-4" size={32} />
+            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+              Cierre Estimado
+            </p>
+            <p className="text-4xl font-black italic tracking-tighter">82%</p>
+          </div>
+          <div className="bg-blue-600 p-8 rounded-[32px] text-white">
+            <Activity className="text-blue-100 mb-4" size={32} />
+            <p className="text-[10px] font-black uppercase text-blue-300 tracking-widest">
+              Consultas Totales
+            </p>
+            <p className="text-4xl font-black italic tracking-tighter">147</p>
+          </div>
         </div>
       </div>
 
-      {/* ACTIVIDAD RECIENTE */}
-      <div className="bg-slate-900 p-8 rounded-[32px] text-white overflow-hidden">
-        <h3 className="text-xl font-black uppercase italic mb-6 flex items-center gap-2">
-          <Bot className="text-blue-400" /> Monitor en Tiempo Real
-        </h3>
-        <div className="space-y-4">
-          <p className="text-sm border-l-2 border-blue-500 pl-4 py-1 opacity-80 italic">
-            <span className="font-black text-blue-400">INFO:</span> IA
-            respondiendo con manuales de Scanner Pro.
-          </p>
-          <p className="text-sm border-l-2 border-red-500 pl-4 py-1 opacity-80 italic">
-            <span className="font-black text-red-500">FILTRO:</span> Mensaje
-            personal descartado por protocolo.
-          </p>
-        </div>
-      </div>
-
-      {/* CHAT FLOTANTE */}
+      {/* --- VENTANA DE CHAT FLOTANTE RECUPERADA --- */}
       <div className="fixed bottom-6 right-6 z-50">
         {isOpen ? (
-          <div className="w-96 h-[550px] bg-white rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
-            <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+          <div className="w-96 h-[550px] bg-white rounded-[32px] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in duration-300">
+            <div className="p-5 bg-slate-900 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <Bot size={20} className="text-blue-400" />
-                <span className="text-[10px] font-black uppercase tracking-widest">
-                  Simulador Dental Boss
+                <div
+                  className={`w-3 h-3 rounded-full ${agenteActivo ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
+                ></div>
+                <span className="text-[10px] font-black uppercase italic tracking-widest">
+                  Simulador Agente
                 </span>
               </div>
               <button onClick={() => setIsOpen(false)}>
@@ -201,20 +250,19 @@ export const ChatIA = () => {
                   className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] p-4 rounded-2xl text-sm font-medium ${
+                    className={`max-w-[85%] p-4 rounded-2xl text-xs font-bold shadow-sm ${
                       m.role === "user"
                         ? "bg-blue-600 text-white rounded-tr-none"
-                        : "bg-white text-slate-700 rounded-tl-none border border-slate-100 shadow-sm"
+                        : "bg-white text-slate-700 rounded-tl-none border border-slate-100"
                     }`}
                   >
-                    {/* APLICAMOS EL FORMATEADOR AQUÍ */}
-                    {formatMessage(m.content)}
+                    {m.content}
                   </div>
                 </div>
               ))}
               {loading && (
-                <div className="text-[10px] font-black text-slate-400 animate-pulse p-2 uppercase">
-                  Leyendo manuales...
+                <div className="text-[10px] font-black text-slate-400 p-2 animate-pulse uppercase italic">
+                  Analizando órdenes...
                 </div>
               )}
             </div>
@@ -224,14 +272,14 @@ export const ChatIA = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Escribe aquí..."
+                placeholder="Pregunta por el Fussen 6500..."
                 className="flex-1 text-sm outline-none px-4 py-3 bg-slate-100 rounded-xl"
                 disabled={loading}
               />
               <button
                 onClick={handleSend}
                 disabled={loading}
-                className="p-3 bg-blue-600 text-white rounded-xl"
+                className="p-3 bg-blue-600 text-white rounded-xl shadow-lg"
               >
                 <Send size={18} />
               </button>
@@ -240,12 +288,10 @@ export const ChatIA = () => {
         ) : (
           <button
             onClick={() => setIsOpen(true)}
-            className="bg-slate-900 text-white p-5 rounded-3xl shadow-2xl flex items-center gap-3 hover:scale-105 transition-transform"
+            className="bg-slate-900 text-white p-5 rounded-3xl shadow-2xl flex items-center gap-3 hover:scale-105 transition-all border-b-4 border-blue-600 font-black uppercase text-xs tracking-widest italic"
           >
             <MessageSquare size={24} />
-            <span className="font-black uppercase text-xs tracking-widest">
-              Abrir Simulación
-            </span>
+            Probar Agente
           </button>
         )}
       </div>
