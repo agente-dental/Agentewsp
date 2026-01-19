@@ -8,6 +8,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  Tag,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -19,6 +20,7 @@ interface ContentItem {
   url: string;
   date: string;
   description?: string;
+  brand?: string; // Nueva propiedad para marcas
 }
 
 // Función para limpiar nombres de archivos y hacerlos legibles
@@ -45,10 +47,35 @@ const getFileType = (fileName: string): "video" | "photo" | "text" => {
   return "photo"; // Default a photo
 };
 
+// Función para extraer la marca del nombre del archivo
+const extractBrand = (fileName: string): string => {
+  const brands = [
+    "Fussen",
+    "Sirona",
+    "Dentsply",
+    "Ivoclar",
+    "3M",
+    "Zimmer",
+    "BioHorizons",
+    "Straumann",
+    "Nobel",
+  ];
+  const cleanName = cleanFileName(fileName).toLowerCase();
+
+  for (const brand of brands) {
+    if (cleanName.includes(brand.toLowerCase())) {
+      return brand;
+    }
+  }
+
+  return "Otras";
+};
+
 export const Gallery = () => {
-  const [filter, setFilter] = useState<"todos" | "video" | "photo" | "text">(
-    "todos",
-  );
+  const [filter, setFilter] = useState<
+    "todos" | "video" | "photo" | "text" | "marcas"
+  >("todos");
+  const [brandFilter, setBrandFilter] = useState<string>("todos");
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [catalogos, setCatalogos] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +99,18 @@ export const Gallery = () => {
       setZoomLevel(1);
       setRotation(0);
     }
+  }, [selectedItem]);
+
+  // Cerrar modal con tecla Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && selectedItem) {
+        setSelectedItem(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [selectedItem]);
 
   // Función para obtener catálogos de Supabase
@@ -112,6 +151,7 @@ export const Gallery = () => {
                 file.created_at || Date.now(),
               ).toLocaleDateString(),
               description: `Archivo de catálogo: ${cleanFileName(file.name)}`,
+              brand: extractBrand(file.name),
             };
           } catch (fileError) {
             console.error(`Error processing file ${file.name}:`, fileError);
@@ -141,10 +181,19 @@ export const Gallery = () => {
     fetchCatalogos();
   }, []);
 
+  // Obtener todas las marcas disponibles
+  const availableBrands = Array.from(
+    new Set(catalogos.map((item) => item.brand || "Otras")),
+  ).sort();
+
   const filteredData =
     filter === "todos"
       ? catalogos
-      : catalogos.filter((item) => item.type === filter);
+      : filter === "marcas"
+        ? brandFilter === "todos"
+          ? catalogos
+          : catalogos.filter((item) => item.brand === brandFilter)
+        : catalogos.filter((item) => item.type === filter);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -248,7 +297,51 @@ export const Gallery = () => {
           <FileText size={16} />
           Textos
         </button>
+
+        <button
+          onClick={() => setFilter("marcas")}
+          className={`px-6 py-2 rounded-2xl font-semibold transition-all flex items-center gap-2 ${
+            filter === "marcas"
+              ? "bg-purple-500 text-white shadow-lg shadow-purple-200"
+              : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+          }`}
+        >
+          <Tag size={16} />
+          Marcas
+        </button>
       </div>
+
+      {/* Brand Filter - Solo visible cuando el filtro principal es "marcas" */}
+      {filter === "marcas" && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <span className="text-sm font-semibold text-gray-700 px-3 py-1">
+            Filtrar por marca:
+          </span>
+          <button
+            onClick={() => setBrandFilter("todos")}
+            className={`px-4 py-2 rounded-xl font-semibold transition-all text-sm ${
+              brandFilter === "todos"
+                ? "bg-purple-600 text-white shadow-lg shadow-purple-200"
+                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+            }`}
+          >
+            Todas
+          </button>
+          {availableBrands.map((brand) => (
+            <button
+              key={brand}
+              onClick={() => setBrandFilter(brand)}
+              className={`px-4 py-2 rounded-xl font-semibold transition-all text-sm ${
+                brandFilter === brand
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-200"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
+            >
+              {brand}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Loading State */}
       {loading ? (
@@ -441,7 +534,8 @@ export const Gallery = () => {
                 </div>
                 <button
                   onClick={() => setSelectedItem(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors touch-manipulation"
+                  aria-label="Cerrar modal"
                 >
                   <X size={20} className="text-gray-600" />
                 </button>
@@ -493,7 +587,8 @@ export const Gallery = () => {
               </div>
               <button
                 onClick={() => setSelectedItem(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors touch-manipulation"
+                aria-label="Cerrar modal"
               >
                 <X size={20} className="text-gray-600" />
               </button>

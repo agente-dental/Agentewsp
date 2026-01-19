@@ -1,6 +1,15 @@
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { Package, LogOut, Menu, X, Activity, Play, Cpu } from "lucide-react";
+import {
+  Package,
+  LogOut,
+  Menu,
+  X,
+  Activity,
+  Play,
+  Cpu,
+  User,
+} from "lucide-react";
 import { useState } from "react";
 
 export const Sidebar = () => {
@@ -42,18 +51,27 @@ export const Sidebar = () => {
         `}
       >
         <div className="p-4 sm:p-6 lg:p-8">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-              <Activity className="text-white" size={24} />
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                <Activity className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="font-black text-slate-900 text-xl tracking-tight leading-none uppercase italic">
+                  Dental Boss
+                </h1>
+                <p className="text-[10px] font-bold text-blue-600 tracking-[0.2em] uppercase">
+                  Manager Pro
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-black text-slate-900 text-xl tracking-tight leading-none uppercase italic">
-                Dental Boss
-              </h1>
-              <p className="text-[10px] font-bold text-blue-600 tracking-[0.2em] uppercase">
-                Manager Pro
-              </p>
-            </div>
+            <button
+              onClick={handleSignOut}
+              className="lg:hidden p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
         </div>
 

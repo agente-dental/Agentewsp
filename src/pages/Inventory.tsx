@@ -199,7 +199,7 @@ export const Inventory = () => {
               required
             />
             <select
-              className="p-4 rounded-xl bg-slate-50 border-none font-bold"
+              className="w-full p-4 rounded-xl bg-slate-50 border-none font-bold"
               value={formData.categoria}
               onChange={(e) =>
                 setFormData({ ...formData, categoria: e.target.value })
@@ -210,9 +210,18 @@ export const Inventory = () => {
               <option value="equipamiento">Equipamiento</option>
             </select>
             <input
+              type="text"
+              placeholder="Nombre del equipo"
+              className="w-full p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
+              value={formData.nombre}
+              onChange={(e) =>
+                setFormData({ ...formData, nombre: e.target.value })
+              }
+            />
+            <input
               type="number"
               placeholder="Precio ($)"
-              className="p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
+              className="w-full p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
               value={formData.precio}
               onChange={(e) =>
                 setFormData({ ...formData, precio: e.target.value })
@@ -221,7 +230,7 @@ export const Inventory = () => {
             <input
               type="number"
               placeholder="Stock"
-              className="p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
+              className="w-full p-4 rounded-xl bg-slate-50 border-none font-bold outline-none"
               value={formData.stock}
               onChange={(e) =>
                 setFormData({ ...formData, stock: e.target.value })
@@ -287,7 +296,7 @@ export const Inventory = () => {
 
             <textarea
               placeholder="Descripción IA..."
-              className="md:col-span-2 p-4 rounded-xl bg-slate-50 border-none min-h-[100px]"
+              className="md:col-span-2 w-full p-4 rounded-xl bg-slate-50 border-none min-h-[100px]"
               value={formData.descripcion_tecnica}
               onChange={(e) =>
                 setFormData({
@@ -313,9 +322,10 @@ export const Inventory = () => {
         </div>
       )}
 
-      {/* TABLA CON COLUMNA DE STOCK RESTAURADA - RESPONSIVA */}
+      {/* TABLA RESPONSIVA - CARDS EN MÓVILES */}
       <div className="glass-card apple-shadow rounded-[24px] sm:rounded-[32px] overflow-hidden border border-slate-100">
-        <div className="overflow-x-auto">
+        {/* Vista Desktop - Tabla */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
             <thead className="bg-slate-50/50 border-b border-slate-100">
               <tr>
@@ -383,6 +393,72 @@ export const Inventory = () => {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Vista Mobile - Cards */}
+        <div className="md:hidden p-4 space-y-4">
+          {products.map((p) => (
+            <div
+              key={p.id}
+              className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md apple-transition"
+            >
+              {/* Header del Card */}
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="font-black text-slate-800 text-lg uppercase italic tracking-tighter mb-2">
+                    {p.nombre}
+                  </h3>
+                  <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 w-fit">
+                    <FileText size={10} /> {p.catalogos_archivos?.length || 0}{" "}
+                    Archivos
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(p)}
+                    className="w-10 h-10 bg-slate-50/50 text-slate-400 hover:text-blue-600 rounded-xl apple-transition border border-white shadow-sm flex items-center justify-center"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button
+                    onClick={() => deleteProduct(p.id)}
+                    className="w-10 h-10 bg-slate-50/50 text-slate-300 hover:text-red-500 rounded-xl apple-transition border border-white shadow-sm flex items-center justify-center"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Contenido del Card */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">
+                    Precio
+                  </p>
+                  <p className="font-bold text-slate-600">
+                    $
+                    {Number(p.precio).toLocaleString("es-ES", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mb-1">
+                    Stock
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${Number(p.stock) > 0 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-500"}`}
+                    ></div>
+                    <span className="font-black text-slate-700 text-sm tracking-tight">
+                      {p.stock || "0"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
