@@ -11,6 +11,7 @@ import { Inventory } from "./pages/Inventory";
 import { Gallery } from "./pages/Gallery";
 import { ChatIA } from "./components/ChatIA";
 import { AgentControlPanel } from "./components/AgentControlPanel";
+import { AgentProvider } from "./lib/agentContext";
 import { Login } from "./pages/Login";
 
 function App() {
@@ -50,40 +51,51 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
-        {/* El Sidebar se mantiene fijo a la izquierda */}
-        <Sidebar />
+    <AgentProvider>
+      <Router>
+        <div className="flex w-full min-h-screen bg-slate-50 text-slate-900">
+          {/* El Sidebar se mantiene fijo a la izquierda */}
+          <Sidebar />
 
-        {/* Contenedor principal con scroll independiente y margen para el Sidebar */}
-        <main className="flex-1 lg:ml-72 min-h-screen overflow-y-auto">
-          <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-16 sm:pt-20 lg:pt-12">
-            <Routes>
-              {/* Ruta Raíz: Redirige a Inventario por defecto */}
-              <Route path="/" element={<Navigate to="/inventario" replace />} />
+          {/* Contenedor principal con scroll independiente y margen para el Sidebar */}
+          <main className="flex-1 lg:ml-72 min-h-screen overflow-y-auto">
+            <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-16 sm:pt-20 lg:pt-12">
+              <Routes>
+                {/* Ruta Raíz: Redirige a Inventario por defecto */}
+                <Route
+                  path="/"
+                  element={<Navigate to="/inventario" replace />}
+                />
 
-              {/* Sección de Inventario: Solo muestra la tabla de productos */}
-              <Route path="/inventario" element={<Inventory />} />
+                {/* Sección de Inventario: Solo muestra la tabla de productos */}
+                <Route path="/inventario" element={<Inventory />} />
 
-              {/* Sección Galería: Catálogo visual de contenido */}
-              <Route path="/galeria" element={<Gallery />} />
+                {/* Sección Galería: Catálogo visual de contenido */}
+                <Route path="/galeria" element={<Gallery />} />
 
-              {/* Sección Control Agente: Panel de control con botón on/off */}
-              <Route path="/agente" element={<AgentControlPanel />} />
+                {/* Sección Control Agente: Panel de control con botón on/off */}
+                <Route path="/agente" element={<AgentControlPanel />} />
 
-              {/* Redirección de la antigua ruta Panel Agente a Control Agente */}
-              <Route path="/chat" element={<Navigate to="/agente" replace />} />
+                {/* Redirección de la antigua ruta Panel Agente a Control Agente */}
+                <Route
+                  path="/chat"
+                  element={<Navigate to="/agente" replace />}
+                />
 
-              {/* Redirección por si el usuario entra a una ruta inexistente */}
-              <Route path="*" element={<Navigate to="/inventario" replace />} />
-            </Routes>
-          </div>
-        </main>
+                {/* Redirección por si el usuario entra a una ruta inexistente */}
+                <Route
+                  path="*"
+                  element={<Navigate to="/inventario" replace />}
+                />
+              </Routes>
+            </div>
+          </main>
 
-        {/* Chat Global: Visible en todas las páginas */}
-        <ChatIA />
-      </div>
-    </Router>
+          {/* Chat Global: Visible en todas las páginas */}
+          <ChatIA />
+        </div>
+      </Router>
+    </AgentProvider>
   );
 }
 

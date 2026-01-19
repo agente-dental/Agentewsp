@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AgentSettingsService } from "../lib/agentSettings";
+import { useAgent } from "../lib/agentContext";
 import { Plus, Edit2, Trash2, Power, Layers } from "lucide-react";
 
 // PARTE FIJA (CORE) - Inmutable para garantizar estabilidad
@@ -35,13 +36,13 @@ interface DailyOrder {
 }
 
 export const AgentControlPanel = () => {
-  const [agenteActivo, setAgenteActivo] = useState(true);
+  const { agenteActivo, toggleAgentStatus } = useAgent();
   const [dailyOrders, setDailyOrders] = useState<DailyOrder[]>([]);
   const [newOrder, setNewOrder] = useState("");
   const [editingOrder, setEditingOrder] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
 
-  // Cargar órdenes diarias al montar
+  // Cargar configuraciones al montar
   useEffect(() => {
     loadDailyOrders();
   }, []);
@@ -145,7 +146,7 @@ ${ordersText || "No hay órdenes específicas activas."}`;
           </p>
         </div>
         <button
-          onClick={() => setAgenteActivo(!agenteActivo)}
+          onClick={toggleAgentStatus}
           className={`flex items-center gap-3 px-8 py-4 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-2xl ${
             agenteActivo
               ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/25 text-white"

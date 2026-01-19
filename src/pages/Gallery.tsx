@@ -82,6 +82,9 @@ export const Gallery = () => {
   const [error, setError] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [showAddBrand, setShowAddBrand] = useState(false);
+  const [newBrandName, setNewBrandName] = useState("");
+  const [customBrands, setCustomBrands] = useState<string[]>([]);
 
   // Funciones de zoom y rotación
   const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 3));
@@ -181,9 +184,33 @@ export const Gallery = () => {
     fetchCatalogos();
   }, []);
 
-  // Obtener todas las marcas disponibles
+  // Función para añadir una nueva marca personalizada
+  const addCustomBrand = () => {
+    if (!newBrandName.trim()) return;
+
+    const brandName = newBrandName.trim();
+    if (!customBrands.includes(brandName) && brandName !== "Otras") {
+      setCustomBrands([...customBrands, brandName]);
+      setNewBrandName("");
+      setShowAddBrand(false);
+    }
+  };
+
+  // Obtener todas las marcas disponibles (predefinidas + personalizadas)
+  const predefinedBrands = [
+    "Fussen",
+    "Sirona",
+    "Dentsply",
+    "Ivoclar",
+    "3M",
+    "Zimmer",
+    "BioHorizons",
+    "Straumann",
+    "Nobel",
+  ];
+  const allBrands = [...predefinedBrands, ...customBrands, "Otras"];
   const availableBrands = Array.from(
-    new Set(catalogos.map((item) => item.brand || "Otras")),
+    new Set([...allBrands, ...catalogos.map((item) => item.brand || "Otras")]),
   ).sort();
 
   const filteredData =
@@ -313,33 +340,90 @@ export const Gallery = () => {
 
       {/* Brand Filter - Solo visible cuando el filtro principal es "marcas" */}
       {filter === "marcas" && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className="text-sm font-semibold text-gray-700 px-3 py-1">
-            Filtrar por marca:
-          </span>
-          <button
-            onClick={() => setBrandFilter("todos")}
-            className={`px-4 py-2 rounded-xl font-semibold transition-all text-sm ${
-              brandFilter === "todos"
-                ? "bg-purple-600 text-white shadow-lg shadow-purple-200"
-                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
-            }`}
-          >
-            Todas
-          </button>
-          {availableBrands.map((brand) => (
+        <div className="space-y-4 mb-6">
+          <div className="flex flex-wrap gap-2">
+            <span className="text-sm font-semibold text-gray-700 px-3 py-1">
+              Filtrar por marca:
+            </span>
             <button
-              key={brand}
-              onClick={() => setBrandFilter(brand)}
+              onClick={() => setBrandFilter("todos")}
               className={`px-4 py-2 rounded-xl font-semibold transition-all text-sm ${
-                brandFilter === brand
+                brandFilter === "todos"
                   ? "bg-purple-600 text-white shadow-lg shadow-purple-200"
                   : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
               }`}
             >
-              {brand}
+              Todas
             </button>
-          ))}
+            {availableBrands.map((brand) => (
+              <button
+                key={brand}
+                onClick={() => setBrandFilter(brand)}
+                className={`px-4 py-2 rounded-xl font-semibold transition-all text-sm ${
+                  brandFilter === brand
+                    ? "bg-purple-600 text-white shadow-lg shadow-purple-200"
+                    : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                }`}
+              >
+                {brand}
+                {customBrands.includes(brand) && (
+                  <span className="ml-1 text-xs bg-purple-100 text-purple-600 px-1 rounded">
+                    Nuevo
+                  </span>
+                )}
+              </button>
+            ))}
+            <button
+              onClick={() => setShowAddBrand(!showAddBrand)}
+              className="px-4 py-2 rounded-xl font-semibold transition-all text-sm bg-purple-100 text-purple-600 hover:bg-purple-200 border border-purple-200"
+            >
+              + Añadir Marca
+            </button>
+          </div>
+
+          {/* Formulario para añadir nueva marca */}
+          {showAddBrand && (
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nombre de la nueva marca..."
+                  className="flex-1 px-4 py-2 bg-white border border-purple-200 rounded-lg text-sm font-medium outline-none focus:border-purple-400 focus:shadow-lg"
+                  value={newBrandName}
+                  onChange={(e) => setNewBrandName(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      addCustomBrand();
+                    } else if (e.key === "Escape") {
+                      setShowAddBrand(false);
+                      setNewBrandName("");
+                    }
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={addCustomBrand}
+                  disabled={!newBrandName.trim()}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold text-sm hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  Añadir
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddBrand(false);
+                    setNewBrandName("");
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-semibold text-sm hover:bg-gray-300 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+              <p className="text-xs text-purple-600 mt-2">
+                💡 Añade marcas personalizadas para organizar mejor tus
+                catálogos
+              </p>
+            </div>
+          )}
         </div>
       )}
 

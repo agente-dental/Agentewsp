@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { chatWithAgente } from "../lib/groq";
+import { useAgent } from "../lib/agentContext";
 import {
   MessageSquare,
   Send,
@@ -21,8 +22,8 @@ export const ChatIA = ({
 }: {
   showDashboard?: boolean;
 }) => {
-  // --- ESTADOS DE CONTROL (Sin cambios) ---
-  const [agenteActivo, setAgenteActivo] = useState(true);
+  // --- ESTADOS DE CONTROL ---
+  const { agenteActivo } = useAgent();
   const [nuevaOrden, setNuevaOrden] = useState("");
   const [ordenes, setOrdenes] = useState<any[]>([]);
 
@@ -84,6 +85,20 @@ export const ChatIA = ({
 
   const handleSend = async () => {
     if (!input.trim()) return;
+
+    // Verificar si el agente está activo
+    if (!agenteActivo) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "⚠️ El agente está actualmente en pausa. Por favor, activa el agente desde el Panel de Control para poder responder a tus consultas.",
+        },
+      ]);
+      return;
+    }
+
     const userMsg = input;
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
@@ -96,6 +111,14 @@ export const ChatIA = ({
       ]);
     } catch (error) {
       console.error(error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "❌ Lo siento, ha ocurrido un error al procesar tu consulta. Por favor, intenta nuevamente.",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -149,21 +172,12 @@ export const ChatIA = ({
                 ></span>
                 Dashboard Operativo • {agenteActivo ? "En Línea" : "En Pausa"}
               </p>
+              <p className="text-xs text-gray-400 mt-2">
+                {agenteActivo
+                  ? "✅ El agente está activo y respondiendo consultas"
+                  : "⚠️ El agente está en pausa. Actívalo desde el Panel de Control."}
+              </p>
             </div>
-            <button
-              onClick={() => setAgenteActivo(!agenteActivo)}
-              className={`flex items-center gap-3 px-8 py-4 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-2xl ${
-                agenteActivo
-                  ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/25 text-white"
-                  : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/25 text-white"
-              }`}
-            >
-              <Power
-                size={20}
-                className={agenteActivo ? "animate-pulse" : ""}
-              />
-              {agenteActivo ? "Agente Online" : "Agente Offline"}
-            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
