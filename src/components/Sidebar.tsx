@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Activity,
+  Play,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -24,6 +25,7 @@ export const Sidebar = () => {
   const menuItems = [
     // Cambiamos el icono a Activity para que represente mejor el nuevo Dashboard del Agente
     { icon: Package, label: "Inventario", path: "/inventario" },
+    { icon: Play, label: "Galería", path: "/galeria" },
     { icon: Activity, label: "Panel Agente", path: "/chat" }, // RUTA CORREGIDA A /chat
   ];
 
@@ -47,6 +49,7 @@ export const Sidebar = () => {
         className={`
           fixed top-0 left-0 z-40 h-screen bg-white border-r border-slate-100 transition-transform w-64 sm:w-72
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          flex flex-col
         `}
       >
         <div className="p-4 sm:p-6 lg:p-8">
@@ -65,7 +68,7 @@ export const Sidebar = () => {
           </div>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4">
+        <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
           {menuItems.map((item) => (
             <Link
               key={item.path}

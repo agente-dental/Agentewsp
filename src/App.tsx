@@ -8,6 +8,7 @@ import {
 import { supabase } from "./lib/supabase";
 import { Sidebar } from "./components/Sidebar";
 import { Inventory } from "./pages/Inventory";
+import { Gallery } from "./pages/Gallery";
 import { ChatIA } from "./components/ChatIA";
 import { Login } from "./pages/Login";
 
@@ -63,14 +64,20 @@ function App() {
               {/* Sección de Inventario: Solo muestra la tabla de productos */}
               <Route path="/inventario" element={<Inventory />} />
 
+              {/* Sección Galería: Catálogo visual de contenido */}
+              <Route path="/galeria" element={<Gallery />} />
+
               {/* Sección Chat IA: Aquí y SOLO AQUÍ vive el Dashboard del Agente */}
-              <Route path="/chat" element={<ChatIA />} />
+              <Route path="/chat" element={<ChatIA showDashboard={true} />} />
 
               {/* Redirección por si el usuario entra a una ruta inexistente */}
               <Route path="*" element={<Navigate to="/inventario" replace />} />
             </Routes>
           </div>
         </main>
+
+        {/* Chat Global: Visible en todas las páginas */}
+        <ChatIA />
       </div>
     </Router>
   );

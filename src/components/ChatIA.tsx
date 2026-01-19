@@ -16,7 +16,11 @@ import {
   Clock,
 } from "lucide-react";
 
-export const ChatIA = () => {
+export const ChatIA = ({
+  showDashboard = false,
+}: {
+  showDashboard?: boolean;
+}) => {
   // --- ESTADOS DE CONTROL (Sin cambios) ---
   const [agenteActivo, setAgenteActivo] = useState(true);
   const [nuevaOrden, setNuevaOrden] = useState("");
@@ -97,213 +101,280 @@ export const ChatIA = () => {
     }
   };
 
+  // Función para convertir URLs en enlaces clicables
+  const formatMessageWithLinks = (text: string) => {
+    if (!text) return text;
+
+    // Regex para detectar URLs (http, https, www)
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/g;
+
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, index) => {
+      if (!part) return null;
+
+      if (part.match(urlRegex)) {
+        const url = part.startsWith("www.") ? `https://${part}` : part;
+        return (
+          <a
+            key={index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
-      {/* HEADER: APPLE STYLE ON/OFF */}
-      <div className="glass-card apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6 apple-transition">
-        <div>
-          <h1 className="text-4xl font-black text-slate-800 italic uppercase tracking-tighter leading-none">
-            Agente Inteligente
-          </h1>
-          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2 italic">
-            Dashboard Operativo • {agenteActivo ? "En Línea" : "En Pausa"}
-          </p>
-        </div>
-        <button
-          onClick={() => setAgenteActivo(!agenteActivo)}
-          className={`apple-transition flex items-center gap-4 px-10 py-5 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 ${
-            agenteActivo
-              ? "bg-green-500 text-white shadow-green-200/50 ring-8 ring-green-50"
-              : "bg-slate-200 text-slate-500 shadow-none"
-          }`}
-        >
-          <Power size={18} className={agenteActivo ? "animate-pulse" : ""} />
-          {agenteActivo ? "Agente Online" : "Agente Offline"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-        {/* COLUMNA GESTIÓN DE ÓRDENES (Glass Effect) */}
-        <div className="sm:col-span-2 lg:col-span-2 space-y-6">
-          <div className="glass-card apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] space-y-6 border-none">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-200">
-                <Zap size={22} />
-              </div>
-              <h3 className="text-xl font-black uppercase italic text-slate-800 tracking-tighter">
-                Órdenes Operativas
-              </h3>
+    <>
+      {/* Dashboard content - only show when showDashboard is true */}
+      {showDashboard && (
+        <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
+          {/* HEADER: PREMIUM MEDICAL STYLE */}
+          <div className="premium-card p-6 sm:p-8 lg:p-10 flex flex-col md:flex-row justify-between items-center gap-6 premium-transition">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600 italic uppercase tracking-tight leading-none mb-2">
+                Agente Inteligente
+              </h1>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider italic flex items-center gap-2">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${agenteActivo ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}
+                ></span>
+                Dashboard Operativo • {agenteActivo ? "En Línea" : "En Pausa"}
+              </p>
             </div>
-
-            <div className="flex gap-2">
-              <input
-                placeholder="Ej: 'Promoción especial para Fussen 6500 hoy'..."
-                className="flex-1 p-5 bg-white/50 rounded-2xl border-none font-bold text-sm outline-none apple-transition focus:bg-white"
-                value={nuevaOrden}
-                onChange={(e) => setNuevaOrden(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && agregarOrden()}
+            <button
+              onClick={() => setAgenteActivo(!agenteActivo)}
+              className={`flex items-center gap-3 px-8 py-4 text-sm font-bold uppercase tracking-wider transition-all duration-300 rounded-2xl ${
+                agenteActivo
+                  ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/25 text-white"
+                  : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/25 text-white"
+              }`}
+            >
+              <Power
+                size={20}
+                className={agenteActivo ? "animate-pulse" : ""}
               />
-              <button
-                onClick={agregarOrden}
-                className="bg-slate-900 text-white p-5 rounded-2xl shadow-lg hover:bg-black active:scale-95 apple-transition"
-              >
-                <Plus size={24} />
-              </button>
-            </div>
+              {agenteActivo ? "Agente Online" : "Agente Offline"}
+            </button>
+          </div>
 
-            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
-              {ordenes.map((orden) => (
-                <div
-                  key={orden.id}
-                  className={`apple-transition p-5 rounded-[24px] border flex items-center justify-between ${
-                    orden.activa
-                      ? "bg-white/80 border-blue-50 apple-shadow"
-                      : "bg-slate-100/50 border-transparent opacity-50"
-                  }`}
-                >
-                  <div className="flex gap-4 items-center flex-1">
-                    <button
-                      onClick={() => toggleOrden(orden.id, orden.activa)}
-                      className={`apple-transition ${orden.activa ? "text-blue-600" : "text-slate-300"}`}
-                    >
-                      {orden.activa ? (
-                        <ToggleRight size={36} />
-                      ) : (
-                        <ToggleLeft size={36} />
-                      )}
-                    </button>
-                    <div>
-                      <p
-                        className={`text-sm font-bold tracking-tight ${orden.activa ? "text-slate-700" : "text-slate-400 line-through"}`}
-                      >
-                        {orden.contenido}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Clock size={10} className="text-slate-300" />
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
-                          {new Date(orden.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {/* COLUMNA GESTIÓN DE ÓRDENES (Glass Effect) */}
+            <div className="sm:col-span-2 lg:col-span-2 space-y-6">
+              <div className="premium-card p-4 sm:p-6 lg:p-8 space-y-6 premium-transition">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 text-white shadow-lg flex items-center justify-center">
+                    <Zap size={20} />
                   </div>
+                  <div>
+                    <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight leading-tight">
+                      Órdenes Operativas
+                    </h3>
+                    <p className="text-xs text-gray-500 font-medium">
+                      Gestiona las instrucciones activas
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <input
+                    placeholder="Ej: 'Promoción especial para Fussen 6500 hoy'..."
+                    className="flex-1 px-5 py-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 font-semibold text-sm outline-none premium-transition focus:bg-white focus:border-blue-400 focus:shadow-lg"
+                    value={nuevaOrden}
+                    onChange={(e) => setNuevaOrden(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && agregarOrden()}
+                  />
                   <button
-                    onClick={() => eliminarOrden(orden.id)}
-                    className="p-2 text-slate-300 hover:text-red-400 apple-transition ml-4"
+                    onClick={agregarOrden}
+                    className="premium-button px-5 py-4 rounded-2xl shadow-lg hover:shadow-xl premium-transition"
                   >
-                    <Trash2 size={18} />
+                    <Plus size={20} />
                   </button>
                 </div>
-              ))}
+
+                <div className="space-y-4 max-h-112.5 overflow-y-auto pr-2">
+                  {ordenes.map((orden) => (
+                    <div
+                      key={orden.id}
+                      className={`premium-transition p-4 rounded-2xl border flex items-center justify-between ${
+                        orden.activa
+                          ? "bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 shadow-md"
+                          : "bg-gray-50 border-gray-200 opacity-60"
+                      }`}
+                    >
+                      <div className="flex gap-4 items-center flex-1">
+                        <button
+                          onClick={() => toggleOrden(orden.id, orden.activa)}
+                          className={`premium-transition ${
+                            orden.activa
+                              ? "text-blue-600 hover:text-blue-700"
+                              : "text-gray-400 hover:text-gray-500"
+                          }`}
+                        >
+                          {orden.activa ? (
+                            <ToggleRight size={32} />
+                          ) : (
+                            <ToggleLeft size={32} />
+                          )}
+                        </button>
+                        <div>
+                          <p
+                            className={`text-sm font-semibold tracking-tight ${
+                              orden.activa
+                                ? "text-gray-800"
+                                : "text-gray-500 line-through"
+                            }`}
+                          >
+                            {orden.contenido}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Clock size={12} className="text-gray-400" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                              {new Date(orden.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => eliminarOrden(orden.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 premium-transition ml-4"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* COLUMNA MÉTRICAS (Premium Medical Style) */}
+            <div className="space-y-4 sm:space-y-6">
+              <div className="premium-card p-6 sm:p-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/20 to-transparent rounded-full blur-3xl group-hover:from-orange-400/30 premium-transition"></div>
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg flex items-center justify-center mb-4">
+                    <Flame size={20} />
+                  </div>
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
+                    Cierre Estimado
+                  </p>
+                  <p className="text-4xl font-black text-gray-800 tracking-tight">
+                    82
+                    <span className="text-2xl font-bold text-orange-500">
+                      %
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="premium-card p-6 sm:p-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-transparent rounded-full blur-3xl group-hover:from-blue-400/30 premium-transition"></div>
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 text-white shadow-lg flex items-center justify-center mb-4">
+                    <Activity size={20} />
+                  </div>
+                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
+                    Consultas Semanales
+                  </p>
+                  <p className="text-4xl font-black text-gray-800 tracking-tight">
+                    1.4
+                    <span className="text-2xl font-bold text-blue-500">k</span>
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* COLUMNA MÉTRICAS (Premium Dark & Blue) */}
-        <div className="space-y-4 sm:space-y-6">
-          <div className="bg-slate-900 apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] text-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl group-hover:bg-orange-500/20 apple-transition"></div>
-            <Flame className="text-orange-500 mb-6 relative z-10" size={32} />
-            <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] relative z-10">
-              Cierre Estimado
-            </p>
-            <p className="text-5xl font-black italic tracking-tighter mt-1 relative z-10">
-              82%
-            </p>
-          </div>
-
-          <div className="bg-blue-600 apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] text-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 apple-transition"></div>
-            <Activity className="text-blue-100 mb-6 relative z-10" size={32} />
-            <p className="text-[10px] font-black uppercase text-blue-200 tracking-[0.2em] relative z-10">
-              Consultas Semanales
-            </p>
-            <p className="text-5xl font-black italic tracking-tighter mt-1 relative z-10">
-              1.4k
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* CHAT FLOTANTE: GLASSMORPHISM RESPONSIVE */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
+      {/* CHAT FLOTANTE: PREMIUM MEDICAL STYLE - Always visible */}
+      <div className="fixed bottom-6 right-6 z-50">
         {isOpen ? (
-          <div className="fixed inset-4 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[350px] sm:h-[500px] md:w-[400px] md:h-[600px] lg:w-[450px] lg:h-[650px] glass-card apple-shadow rounded-[24px] sm:rounded-[32px] flex flex-col overflow-hidden animate-in zoom-in duration-300 border-white/40">
-            <div className="p-6 bg-slate-900/95 text-white flex justify-between items-center backdrop-blur-md">
+          <div className="fixed inset-4 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-87.5 sm:h-125 md:w-100 md:h-150 lg:w-112.5 lg:h-162.5 premium-card flex flex-col overflow-hidden animate-in zoom-in duration-300">
+            {/* HEADER DEL CHAT CON AVATAR */}
+            <div className="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div
-                  className={`w-2.5 h-2.5 rounded-full ${agenteActivo ? "bg-green-500 animate-pulse" : "bg-red-500"}`}
-                ></div>
-                <span className="text-[10px] font-black uppercase italic tracking-[0.15em]">
-                  Agente de Simulación
+                <div className="avatar-circle">
+                  <span className="text-sm font-bold">AI</span>
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wider opacity-90">
+                  Agente Dental
                 </span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="hover:rotate-90 apple-transition"
+                className="text-white/80 hover:text-white hover:rotate-90 premium-transition p-1"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
+            {/* CONTENIDO DEL CHAT CON BURBUJAS MODERNAS */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 custom-scrollbar"
+              className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
             >
               {messages.map((m, i) => (
                 <div
                   key={i}
                   className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
+                  {m.role === "assistant" && (
+                    <div className="avatar-circle mr-3 flex-shrink-0">
+                      <span className="text-sm font-bold">AI</span>
+                    </div>
+                  )}
                   <div
-                    className={`max-w-[85%] p-4 rounded-[22px] text-xs font-bold leading-relaxed shadow-sm ${
+                    className={`max-w-[85%] ${
                       m.role === "user"
-                        ? "bg-blue-600 text-white rounded-tr-none"
-                        : "bg-white text-slate-700 rounded-tl-none border border-white"
+                        ? "chat-bubble-user"
+                        : "chat-bubble-assistant"
                     }`}
                   >
-                    {m.content}
+                    <p className="text-sm font-medium">
+                      {formatMessageWithLinks(m.content)}
+                    </p>
                   </div>
                 </div>
               ))}
-              {loading && (
-                <div className="text-[10px] font-black text-slate-400 p-2 animate-pulse uppercase italic tracking-widest text-center">
-                  IA Procesando órdenes activas...
-                </div>
-              )}
             </div>
 
-            <div className="p-5 bg-white/80 backdrop-blur-md border-t border-white/20 flex gap-2">
+            {/* INPUT DEL CHAT ESTILO PREMIUM */}
+            <div className="p-4 bg-white border-t border-gray-100 flex gap-2">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Pregunta por el Fussen 6500..."
-                className="flex-1 text-sm outline-none px-5 py-4 bg-slate-100/50 rounded-[20px] font-bold apple-transition focus:bg-white focus:ring-4 focus:ring-blue-50"
+                placeholder="Escribe tu consulta aquí..."
+                className="flex-1 px-5 py-3 bg-gray-50 rounded-2xl border border-gray-200 font-medium text-sm outline-none premium-transition focus:bg-white focus:border-blue-400 focus:shadow-lg"
                 disabled={loading}
               />
               <button
                 onClick={handleSend}
                 disabled={loading}
-                className="p-4 bg-blue-600 text-white rounded-[20px] shadow-lg shadow-blue-200 apple-transition hover:bg-blue-700 active:scale-90"
+                className="premium-button px-4 py-3 rounded-2xl shadow-lg hover:shadow-xl premium-transition"
               >
-                <Send size={20} />
+                <Send size={18} />
               </button>
             </div>
           </div>
         ) : (
           <button
             onClick={() => setIsOpen(true)}
-            className="bg-slate-900 text-white p-4 sm:p-5 lg:p-6 rounded-[20px] sm:rounded-[24px] lg:rounded-[28px] shadow-2xl flex items-center gap-2 sm:gap-3 lg:gap-4 hover:scale-[1.05] active:scale-95 apple-transition border-b-4 border-blue-600 font-black uppercase text-[10px] sm:text-xs lg:text-xs tracking-[0.15em] italic"
+            className="w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center hover:scale-110"
           >
-            <MessageSquare
-              size={20}
-              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6"
-            />
-            <span className="hidden sm:inline">Probar Agente</span>
-            <span className="sm:hidden">Agente</span>
+            <MessageSquare size={20} />
           </button>
         )}
       </div>
-    </div>
+    </>
   );
 };

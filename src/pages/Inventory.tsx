@@ -11,6 +11,7 @@ import {
   FileText,
   Paperclip,
   Package,
+  Eye,
 } from "lucide-react";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
@@ -21,6 +22,7 @@ export const Inventory = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<any>(null);
 
   const [formData, setFormData] = useState<any>({
     nombre: "",
@@ -241,16 +243,29 @@ export const Inventory = () => {
                           key={file.id}
                           className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-white"
                         >
-                          <div className="flex items-center gap-2 truncate text-xs font-bold">
+                          <div className="flex items-center gap-2 truncate text-xs font-bold flex-1">
                             <FileText size={14} /> {file.nombre_archivo}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => deleteSingleFile(file.id, file.url)}
-                            className="text-slate-300 hover:text-red-500"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(file)}
+                              className="text-slate-300 hover:text-blue-500"
+                              title="Previsualizar"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                deleteSingleFile(file.id, file.url)
+                              }
+                              className="text-slate-300 hover:text-red-500"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                   </div>
@@ -334,7 +349,11 @@ export const Inventory = () => {
                     </span>
                   </td>
                   <td className="p-3 sm:p-4 md:p-6 font-bold text-slate-600">
-                    ${p.precio}
+                    $
+                    {Number(p.precio).toLocaleString("es-ES", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </td>
                   <td className="p-3 sm:p-4 md:p-6">
                     <div className="flex items-center gap-2">
@@ -366,6 +385,62 @@ export const Inventory = () => {
           </table>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewFile && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setPreviewFile(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full h-[90vh] max-w-6xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <FileText size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {previewFile.nombre_archivo}
+                  </h2>
+                  <p className="text-gray-500 text-sm">Previsualización</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPreviewFile(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 bg-gray-100 p-4">
+              {previewFile.nombre_archivo.toLowerCase().endsWith(".pdf") ? (
+                <div className="w-full h-full bg-white rounded-lg shadow-sm overflow-hidden">
+                  <iframe
+                    src={previewFile.url}
+                    className="w-full h-full"
+                    title={`PDF: ${previewFile.nombre_archivo}`}
+                    frameBorder="0"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <img
+                    src={previewFile.url}
+                    alt={previewFile.nombre_archivo}
+                    className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

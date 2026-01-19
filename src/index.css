@@ -1,67 +1,331 @@
 @import "tailwindcss";
 
 :root {
-  --apple-bg: #f5f5f7;
-  --apple-card: rgba(255, 255, 255, 0.8);
-  --apple-blue: #0071e3;
+  /* PALETA PREMIUM SAAS MÉDICO */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+
+  /* AZULES MÉDICOS PREMIUM */
+  --medical-blue: #0ea5e9;
+  --medical-blue-dark: #0284c7;
+  --medical-sky: #0ea5e9;
+  --medical-cyan: #06b6d4;
+
+  /* GRADIENTES SUAVES */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-soft: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-card: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.7) 100%
+  );
+
+  /* SOMBRAS SUAVES MULTINIVEL */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* COLORES DE FONDO Y TEXTO */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-soft: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-light: #e2e8f0;
+  --border-soft: #f1f5f9;
+
+  /* COLORES ESTADO MÉDICOS */
+  --success-primary: #10b981;
+  --success-light: #d1fae5;
+  --warning-primary: #f59e0b;
+  --warning-light: #fef3c7;
+  --error-primary: #ef4444;
+  --error-light: #fee2e2;
 }
 
 body {
   margin: 0;
-  background-color: var(--apple-bg);
-  /* Fuente tipo San Francisco / Inter para máxima legibilidad */
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   font-family:
     -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #1d1d1f;
+  color: var(--text-primary);
+  line-height: 1.6;
 }
 
-/* Efecto de Cristal para Tarjetas y Sidebar */
+/* TARJETAS PREMIUM CON GRADIENTES Y SOMBRAS */
 .glass-card {
-  background: var(--apple-card);
+  background: var(--gradient-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Scrollbars Minimalistas */
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* TARJETA PREMIUM CON EFECTO NEOMORPHISM */
+.premium-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow-xl);
+}
+
+/* BOTONES PREMIUM CON MICRO-INTERACCIONES */
+.premium-button {
+  background: linear-gradient(
+    135deg,
+    var(--primary-600) 0%,
+    var(--primary-700) 100%
+  );
+  border: 1px solid var(--primary-700);
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  padding: 12px 24px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.premium-button:hover::before {
+  left: 100%;
+}
+
+.premium-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  background: linear-gradient(
+    135deg,
+    var(--primary-700) 0%,
+    var(--primary-800) 100%
+  );
+}
+
+.premium-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* SCROLLBAR PERSONALIZADA PREMIUM */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d2d2d7;
+  background: var(--bg-soft);
   border-radius: 10px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #86868b;
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    var(--primary-400) 0%,
+    var(--primary-600) 100%
+  );
+  border-radius: 10px;
+  border: 2px solid var(--bg-soft);
 }
 
-/* Animaciones Suaves Apple Style */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    var(--primary-500) 0%,
+    var(--primary-700) 100%
+  );
+}
+
+/* ANIMACIONES PREMIUM */
+.premium-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-transition-smooth {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* EFECTOS DE ENFOQUE PREMIUM */
+input:focus,
+textarea:focus,
+select:focus {
+  background-color: white !important;
+  border-color: var(--primary-500) !important;
+  box-shadow:
+    0 0 0 4px rgba(59, 130, 246, 0.1),
+    0 0 0 1px rgba(59, 130, 246, 0.05) !important;
+  outline: none !important;
+}
+
+/* EFECTO DE ESCRITURA ANIMADO */
+.typing-indicator {
+  display: inline-flex;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--bg-soft);
+  border-radius: 16px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--primary-400);
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* AVATAR CIRCULAR PREMIUM */
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--primary-500) 0%,
+    var(--primary-700) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.avatar-circle::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: var(--success-primary);
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+/* BURBUJAS DE CHAT MODERNAS */
+.chat-bubble-user {
+  background: linear-gradient(
+    135deg,
+    var(--primary-600) 0%,
+    var(--primary-700) 100%
+  );
+  color: white;
+  border-radius: 18px 18px 4px 18px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  box-shadow: var(--shadow-sm);
+  max-width: 70%;
+  animation: slideInRight 0.3s ease-out;
+}
+
+.chat-bubble-assistant {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 18px 18px 18px 4px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  box-shadow: var(--shadow-sm);
+  max-width: 70%;
+  animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* CLASES LEGADO PARA COMPATIBILIDAD */
 .apple-transition {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Sombras Profundas pero Suaves */
 .apple-shadow {
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
-}
-
-/* Estilo para Inputs */
-input,
-textarea,
-select {
-  transition: all 0.2s ease-in-out !important;
-}
-
-input:focus,
-textarea:focus {
-  background-color: white !important;
-  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1) !important;
+  box-shadow: var(--shadow-lg);
 }
