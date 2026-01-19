@@ -1,16 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import {
-  LayoutDashboard,
-  Package,
-  MessageSquare,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  Activity,
-  Play,
-} from "lucide-react";
+import { Package, LogOut, Menu, X, Activity, Play, Cpu } from "lucide-react";
 import { useState } from "react";
 
 export const Sidebar = () => {
@@ -23,10 +13,9 @@ export const Sidebar = () => {
   };
 
   const menuItems = [
-    // Cambiamos el icono a Activity para que represente mejor el nuevo Dashboard del Agente
     { icon: Package, label: "Inventario", path: "/inventario" },
     { icon: Play, label: "Galería", path: "/galeria" },
-    { icon: Activity, label: "Panel Agente", path: "/chat" }, // RUTA CORREGIDA A /chat
+    { icon: Cpu, label: "Control Agente", path: "/agente" },
   ];
 
   return (

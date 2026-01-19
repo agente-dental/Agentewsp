@@ -10,6 +10,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Inventory } from "./pages/Inventory";
 import { Gallery } from "./pages/Gallery";
 import { ChatIA } from "./components/ChatIA";
+import { AgentControlPanel } from "./components/AgentControlPanel";
 import { Login } from "./pages/Login";
 
 function App() {
@@ -67,8 +68,11 @@ function App() {
               {/* Sección Galería: Catálogo visual de contenido */}
               <Route path="/galeria" element={<Gallery />} />
 
-              {/* Sección Chat IA: Aquí y SOLO AQUÍ vive el Dashboard del Agente */}
-              <Route path="/chat" element={<ChatIA showDashboard={true} />} />
+              {/* Sección Control Agente: Panel de control con botón on/off */}
+              <Route path="/agente" element={<AgentControlPanel />} />
+
+              {/* Redirección de la antigua ruta Panel Agente a Control Agente */}
+              <Route path="/chat" element={<Navigate to="/agente" replace />} />
 
               {/* Redirección por si el usuario entra a una ruta inexistente */}
               <Route path="*" element={<Navigate to="/inventario" replace />} />

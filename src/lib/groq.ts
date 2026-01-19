@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
 import { AGENTE_PROMPTS } from "./prompt.ts";
+import { AgentSettingsService } from "./agentSettings";
 
 const groq = new Groq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
@@ -12,6 +13,37 @@ export const chatWithAgente = async (
   agenteActivo: boolean = true,
 ) => {
   try {
+    // Cargar configuraciones dinámicas
+    const settings = await AgentSettingsService.getAll();
+
+    // Usar prompt híbrido si está disponible, sino usar el sistema tradicional
+    const finalPrompt =
+      settings.final_prompt ||
+      settings.core_prompt ||
+      AGENTE_PROMPTS.VENTAS_TECNICO("");
+
+    // Cargar conocimiento de productos
+    const [prodRes] = await Promise.all([
+      supabase.from("productos").select(`
+        nombre, precio, stock, descripcion_tecnica, 
+        catalogos_archivos (nombre_archivo, url, texto_extraido)
+      `),
+      supabase.from("ordenes_diarias").select("contenido").eq("activa", true),
+    ]);
+
+    const conocimiento: string =
+      prodRes.data
+        ?.map((p: any) => {
+          const manuales = p.catalogos_archivos
+            ?.map(
+              (a: any) =>
+                `### DOC: ${a.nombre_archivo} | TEXTO: ${a.texto_extraido || "No disponible"} | LINK: ${a.url}`,
+            )
+            .join("\n");
+          return `EQUIPO: ${p.nombre}\nPRECIO: ${p.precio}\nSTOCK: ${p.stock}\nINFO: ${p.descripcion_tecnica}\n${manuales}`;
+        })
+        .join("\n\n") ?? "";
+
     if (!agenteActivo) {
       // Intentar con múltiples modelos en orden de preferencia
       const models = [
@@ -62,32 +94,6 @@ export const chatWithAgente = async (
       throw new Error("Todos los modelos fallaron");
     }
 
-    // Traemos Productos + Órdenes Activas en paralelo
-    const [prodRes, ordenesRes] = await Promise.all([
-      supabase.from("productos").select(`
-        nombre, precio, stock, descripcion_tecnica, 
-        catalogos_archivos (nombre_archivo, url, texto_extraido)
-      `),
-      supabase.from("ordenes_diarias").select("contenido").eq("activa", true),
-    ]);
-
-    const conocimiento: string =
-      prodRes.data
-        ?.map((p: any) => {
-          const manuales = p.catalogos_archivos
-            ?.map(
-              (a: any) =>
-                `### DOC: ${a.nombre_archivo} | TEXTO: ${a.texto_extraido || "No disponible"} | LINK: ${a.url}`,
-            )
-            .join("\n");
-          return `EQUIPO: ${p.nombre}\nPRECIO: ${p.precio}\nSTOCK: ${p.stock}\nINFO: ${p.descripcion_tecnica}\n${manuales}`;
-        })
-        .join("\n\n") ?? "";
-
-    const instruccionesActivas: string =
-      ordenesRes.data?.map((o) => `• ${o.contenido}`).join("\n") ??
-      "No hay órdenes activas.";
-
     // Intentar con múltiples modelos en orden de preferencia
     const models = [
       "llama-3.3-70b-versatile",
@@ -97,25 +103,24 @@ export const chatWithAgente = async (
 
     for (const modelName of models) {
       try {
-        // Reducir contexto para modelos más pequeños
-        let conocimientoReducido = conocimiento;
-        if (
-          modelName === "llama-3.1-8b-instant" &&
-          conocimiento.length > 3000
-        ) {
-          conocimientoReducido = conocimiento.substring(0, 3000) + "...";
-        }
+        // Construir el system prompt dinámico
+        const dynamicSystemPrompt = `
+${finalPrompt}
+
+${
+  conocimiento
+    ? `
+CONOCIMIENTO DISPONIBLE:
+${conocimiento}`
+    : ""
+}
+        `.trim();
 
         const response = await groq.chat.completions.create({
           messages: [
             {
               role: "system",
-              content: `
-                ${AGENTE_PROMPTS.VENTAS_TECNICO(conocimientoReducido)}
-                
-                🚨 ÓRDENES OPERATIVAS VIGENTES:
-                ${instruccionesActivas}
-              `,
+              content: dynamicSystemPrompt,
             },
             { role: "user", content: userMessage },
           ],
