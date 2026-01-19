@@ -45,11 +45,11 @@ export const Sidebar = () => {
 
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-screen bg-white border-r border-slate-100 transition-transform w-72
+          fixed top-0 left-0 z-40 h-screen bg-white border-r border-slate-100 transition-transform w-64 sm:w-72
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           <div className="flex items-center gap-3 px-2">
             <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
               <Activity className="text-white" size={24} />

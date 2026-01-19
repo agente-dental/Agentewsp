@@ -100,7 +100,7 @@ export const ChatIA = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
       {/* HEADER: APPLE STYLE ON/OFF */}
-      <div className="glass-card apple-shadow p-8 rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-6 apple-transition">
+      <div className="glass-card apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6 apple-transition">
         <div>
           <h1 className="text-4xl font-black text-slate-800 italic uppercase tracking-tighter leading-none">
             Agente Inteligente
@@ -122,10 +122,10 @@ export const ChatIA = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         {/* COLUMNA GESTIÓN DE ÓRDENES (Glass Effect) */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="glass-card apple-shadow p-8 rounded-[32px] space-y-6 border-none">
+        <div className="sm:col-span-2 lg:col-span-2 space-y-6">
+          <div className="glass-card apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] space-y-6 border-none">
             <div className="flex items-center gap-3">
               <div className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-200">
                 <Zap size={22} />
@@ -199,8 +199,8 @@ export const ChatIA = () => {
         </div>
 
         {/* COLUMNA MÉTRICAS (Premium Dark & Blue) */}
-        <div className="space-y-6">
-          <div className="bg-slate-900 apple-shadow p-8 rounded-[32px] text-white relative overflow-hidden group">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="bg-slate-900 apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] text-white relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl group-hover:bg-orange-500/20 apple-transition"></div>
             <Flame className="text-orange-500 mb-6 relative z-10" size={32} />
             <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] relative z-10">
@@ -211,7 +211,7 @@ export const ChatIA = () => {
             </p>
           </div>
 
-          <div className="bg-blue-600 apple-shadow p-8 rounded-[32px] text-white relative overflow-hidden group">
+          <div className="bg-blue-600 apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] text-white relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 apple-transition"></div>
             <Activity className="text-blue-100 mb-6 relative z-10" size={32} />
             <p className="text-[10px] font-black uppercase text-blue-200 tracking-[0.2em] relative z-10">
@@ -224,10 +224,10 @@ export const ChatIA = () => {
         </div>
       </div>
 
-      {/* CHAT FLOTANTE: GLASSMORPHISM */}
-      <div className="fixed bottom-8 right-8 z-50">
+      {/* CHAT FLOTANTE: GLASSMORPHISM RESPONSIVE */}
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
         {isOpen ? (
-          <div className="w-[400px] h-[600px] glass-card apple-shadow rounded-[32px] flex flex-col overflow-hidden animate-in zoom-in duration-300 border-white/40">
+          <div className="fixed inset-4 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[350px] sm:h-[500px] md:w-[400px] md:h-[600px] lg:w-[450px] lg:h-[650px] glass-card apple-shadow rounded-[24px] sm:rounded-[32px] flex flex-col overflow-hidden animate-in zoom-in duration-300 border-white/40">
             <div className="p-6 bg-slate-900/95 text-white flex justify-between items-center backdrop-blur-md">
               <div className="flex items-center gap-3">
                 <div
@@ -293,10 +293,14 @@ export const ChatIA = () => {
         ) : (
           <button
             onClick={() => setIsOpen(true)}
-            className="bg-slate-900 text-white p-6 rounded-[28px] shadow-2xl flex items-center gap-4 hover:scale-[1.05] active:scale-95 apple-transition border-b-4 border-blue-600 font-black uppercase text-xs tracking-[0.15em] italic"
+            className="bg-slate-900 text-white p-4 sm:p-5 lg:p-6 rounded-[20px] sm:rounded-[24px] lg:rounded-[28px] shadow-2xl flex items-center gap-2 sm:gap-3 lg:gap-4 hover:scale-[1.05] active:scale-95 apple-transition border-b-4 border-blue-600 font-black uppercase text-[10px] sm:text-xs lg:text-xs tracking-[0.15em] italic"
           >
-            <MessageSquare size={24} />
-            Probar Agente
+            <MessageSquare
+              size={20}
+              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6"
+            />
+            <span className="hidden sm:inline">Probar Agente</span>
+            <span className="sm:hidden">Agente</span>
           </button>
         )}
       </div>

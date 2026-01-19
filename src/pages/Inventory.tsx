@@ -166,7 +166,7 @@ export const Inventory = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       {/* HEADER */}
-      <div className="glass-card apple-shadow p-6 rounded-[24px] flex justify-between items-center">
+      <div className="glass-card apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] flex justify-between items-center">
         <h2 className="text-3xl font-black italic uppercase tracking-tighter text-slate-800">
           Inventario
         </h2>
@@ -182,10 +182,10 @@ export const Inventory = () => {
       </div>
 
       {showForm && (
-        <div className="glass-card apple-shadow p-8 rounded-[32px] space-y-6 animate-in slide-in-from-top-4 duration-300">
+        <div className="glass-card apple-shadow p-4 sm:p-6 lg:p-8 rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] space-y-4 sm:space-y-6 animate-in slide-in-from-top-4 duration-300">
           <form
             onSubmit={handleSubmit}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 sm:gap-6"
           >
             <input
               placeholder="Nombre..."
@@ -298,69 +298,73 @@ export const Inventory = () => {
         </div>
       )}
 
-      {/* TABLA CON COLUMNA DE STOCK RESTAURADA */}
-      <div className="glass-card apple-shadow rounded-[32px] overflow-hidden border border-slate-100">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50/50 border-b border-slate-100">
-            <tr>
-              <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic">
-                Equipo
-              </th>
-              <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic">
-                Precio
-              </th>
-              <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic">
-                Stock
-              </th>
-              <th className="p-6 text-[10px] font-black uppercase text-slate-400 italic text-right">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => (
-              <tr
-                key={p.id}
-                className="border-b border-slate-50 hover:bg-slate-50/50 apple-transition"
-              >
-                <td className="p-6">
-                  <p className="font-black text-slate-800 text-lg uppercase italic tracking-tighter">
-                    {p.nombre}
-                  </p>
-                  <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
-                    <FileText size={10} /> {p.catalogos_archivos?.length || 0}{" "}
-                    Archivos
-                  </span>
-                </td>
-                <td className="p-6 font-bold text-slate-600">${p.precio}</td>
-                <td className="p-6">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-2 h-2 rounded-full ${Number(p.stock) > 0 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-500"}`}
-                    ></div>
-                    <span className="font-black text-slate-700 text-sm tracking-tight">
-                      {p.stock || "0"}
-                    </span>
-                  </div>
-                </td>
-                <td className="p-6 text-right flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEdit(p)}
-                    className="p-4 bg-slate-50/50 text-slate-400 hover:text-blue-600 rounded-2xl apple-transition border border-white shadow-sm"
-                  >
-                    <Edit3 size={18} />
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(p.id)}
-                    className="p-4 bg-slate-50/50 text-slate-300 hover:text-red-500 rounded-2xl apple-transition border border-white shadow-sm"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
+      {/* TABLA CON COLUMNA DE STOCK RESTAURADA - RESPONSIVA */}
+      <div className="glass-card apple-shadow rounded-[24px] sm:rounded-[32px] overflow-hidden border border-slate-100">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[600px]">
+            <thead className="bg-slate-50/50 border-b border-slate-100">
+              <tr>
+                <th className="p-3 sm:p-4 md:p-6 text-[10px] font-black uppercase text-slate-400 italic">
+                  Equipo
+                </th>
+                <th className="p-3 sm:p-4 md:p-6 text-[10px] font-black uppercase text-slate-400 italic">
+                  Precio
+                </th>
+                <th className="p-3 sm:p-4 md:p-6 text-[10px] font-black uppercase text-slate-400 italic">
+                  Stock
+                </th>
+                <th className="p-3 sm:p-4 md:p-6 text-[10px] font-black uppercase text-slate-400 italic text-right">
+                  Acciones
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {products.map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-b border-slate-50 hover:bg-slate-50/50 apple-transition"
+                >
+                  <td className="p-3 sm:p-4 md:p-6">
+                    <p className="font-black text-slate-800 text-lg uppercase italic tracking-tighter">
+                      {p.nombre}
+                    </p>
+                    <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 w-fit mt-1">
+                      <FileText size={10} /> {p.catalogos_archivos?.length || 0}{" "}
+                      Archivos
+                    </span>
+                  </td>
+                  <td className="p-3 sm:p-4 md:p-6 font-bold text-slate-600">
+                    ${p.precio}
+                  </td>
+                  <td className="p-3 sm:p-4 md:p-6">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-2 h-2 rounded-full ${Number(p.stock) > 0 ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-500"}`}
+                      ></div>
+                      <span className="font-black text-slate-700 text-sm tracking-tight">
+                        {p.stock || "0"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-3 sm:p-4 md:p-6 text-right flex justify-end gap-2">
+                    <button
+                      onClick={() => handleEdit(p)}
+                      className="p-4 bg-slate-50/50 text-slate-400 hover:text-blue-600 rounded-2xl apple-transition border border-white shadow-sm"
+                    >
+                      <Edit3 size={18} />
+                    </button>
+                    <button
+                      onClick={() => deleteProduct(p.id)}
+                      className="p-4 bg-slate-50/50 text-slate-300 hover:text-red-500 rounded-2xl apple-transition border border-white shadow-sm"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

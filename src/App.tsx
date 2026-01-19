@@ -55,7 +55,7 @@ function App() {
 
         {/* Contenedor principal con scroll independiente y margen para el Sidebar */}
         <main className="flex-1 lg:ml-72 min-h-screen overflow-y-auto">
-          <div className="p-4 md:p-8 lg:p-12 pt-20 lg:pt-12">
+          <div className="p-3 sm:p-4 md:p-6 lg:p-8 pt-16 sm:pt-20 lg:pt-12">
             <Routes>
               {/* Ruta Raíz: Redirige a Inventario por defecto */}
               <Route path="/" element={<Navigate to="/inventario" replace />} />
