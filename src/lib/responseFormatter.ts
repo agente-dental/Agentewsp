@@ -14,30 +14,25 @@ export class ResponseFormatter {
       .replace(/\bquieres\b/gi, "querés")
       .replace(/\bescríbeme\b/gi, "escribime");
 
-    // 3. FORMATEO DE PRECIOS CON PROTECCIÓN TOTAL DE URLS
-    // Esta regex identifica números largos pero verifica que NO sean parte de un link
+    // 3. FORMATEO DE PRECIOS CON EXCLUSIÓN TOTAL DE URLS
+    // Buscamos números de 4 o más dígitos
     formatted = formatted.replace(
       /(\$?\s?)(\b\d{4,}\b)/g,
       (match, p1, p2, offset, string) => {
-        // Miramos qué hay antes y después del número
-        const contextoPrevio = string.slice(Math.max(0, offset - 25), offset);
-        const contextoPosterior = string.slice(
-          offset + p2.length,
-          offset + p2.length + 10,
-        );
+        // Capturamos el contexto anterior para verificar si es una URL
+        const contextoPrevio = string.slice(Math.max(0, offset - 50), offset);
 
-        // Si el número es parte de una URL de Supabase o una ruta de archivo, lo ignoramos
+        // SI EL NÚMERO ES PARTE DE TU STORAGE, NO LO TOCAMOS BAJO NINGÚN CONCEPTO
         if (
           contextoPrevio.includes("supabase.co") ||
-          contextoPrevio.includes("/") ||
-          contextoPosterior.includes(".pdf") ||
-          contextoPosterior.includes("/")
+          contextoPrevio.includes("public/catalogos") ||
+          contextoPrevio.includes("/")
         ) {
           return match;
         }
 
         const num = parseInt(p2);
-        // Evitamos tocar modelos (ej: 6500) si no tienen el signo $
+        // Ignorar modelos de 4 dígitos sin signo $
         if (p2.length === 4 && !p1.includes("$")) {
           return match;
         }
@@ -52,38 +47,30 @@ export class ResponseFormatter {
       "",
     );
 
-    // 5. VALIDACIÓN DE LINKS
+    // 5. VALIDACIÓN DE LINKS (Liberación total para tu dominio)
     formatted = await this.validateLinks(formatted);
 
     return formatted.trim();
   }
 
   private static async validateLinks(text: string): Promise<string> {
+    // Regex específica para tu proyecto
     const urlRegex =
       /(https:\/\/tpqidiuikttammwmohgi\.supabase\.co\/storage\/v1\/object\/public\/[\w-/.]+)/g;
     const matches = text.match(urlRegex);
     if (!matches) return text;
 
-    try {
-      const { data: validos } = await supabase
-        .from("catalogos_archivos")
-        .select("url");
-      const urlsExistentes = new Set(validos?.map((v) => v.url.trim()) || []);
-
-      let validatedText = text;
-      for (const url of matches) {
-        // Si el link es de tu storage, lo dejamos pasar SÍ O SÍ.
-        // Solo lo bloqueamos si NO pertenece a tu dominio de Supabase.
-        if (!url.includes("tpqidiuikttammwmohgi.supabase.co")) {
-          validatedText = validatedText.replace(
-            url,
-            "(Catálogo en actualización)",
-          );
-        }
+    let validatedText = text;
+    for (const url of matches) {
+      // Si el link pertenece a tu proyecto, se entrega TAL CUAL, sin filtros adicionales
+      // Esto evita que cualquier lógica de validación lo rompa por error de string
+      if (url.includes("tpqidiuikttammwmohgi.supabase.co")) {
+        continue;
+      } else {
+        // Solo para links externos sospechosos
+        validatedText = validatedText.replace(url, "(Link en revisión)");
       }
-      return validatedText;
-    } catch {
-      return text;
     }
+    return validatedText;
   }
 }
