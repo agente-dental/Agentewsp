@@ -33,7 +33,7 @@ export const ChatIA = ({
       {
         role: "assistant",
         content:
-          "¡Hola! Soy el asistente de Agente DENTAL. ¿Cual es tu consulta?",
+          "¡Hola! Soy el asistente de Agente Dental. ¿Cual es tu consulta?",
       },
     ],
   );
