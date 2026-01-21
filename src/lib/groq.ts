@@ -1,7 +1,7 @@
 import Groq from "groq-sdk";
 import { supabase } from "./supabase";
-import { AGENTE_PROMPTS } from "./prompt.ts";
-import { AgentSettingsService } from "./agentSettings";
+import { AGENTE_PROMPTS } from "./prompt";
+import { ResponseFormatter } from "./responseFormatter";
 
 const groq = new Groq({
   apiKey: import.meta.env.VITE_GROQ_API_KEY,
@@ -13,146 +13,70 @@ export const chatWithAgente = async (
   agenteActivo: boolean = true,
 ) => {
   try {
-    // Cargar configuraciones dinámicas
-    const settings = await AgentSettingsService.getAll();
+    // 1. OBTENER LINKS QUE EXISTEN REALMENTE
+    const { data: archivos } = await supabase
+      .from("catalogos_archivos")
+      .select("url, producto_id");
+    const urlsValidas = new Set(archivos?.map((a) => a.url) || []);
 
-    // Usar prompt híbrido si está disponible, sino usar el sistema tradicional
-    const finalPrompt =
-      settings.final_prompt ||
-      settings.core_prompt ||
-      AGENTE_PROMPTS.VENTAS_TECNICO("");
-
-    // Cargar conocimiento de productos
-    const [prodRes] = await Promise.all([
-      supabase.from("productos").select(`
-        nombre, precio, stock, descripcion_tecnica, 
-        catalogos_archivos (nombre_archivo, url, texto_extraido)
-      `),
+    // 2. OBTENER PRODUCTOS Y ÓRDENES
+    const [prodRes, ordenesRes] = await Promise.all([
+      supabase
+        .from("productos")
+        .select("nombre, precio, stock, descripcion_tecnica"),
       supabase.from("ordenes_diarias").select("contenido").eq("activa", true),
     ]);
 
-    const conocimiento: string =
+    // 3. CONSTRUCCIÓN DE CONOCIMIENTO ULTRA-PRECISO
+    const conocimiento =
       prodRes.data
-        ?.map((p: any) => {
-          const manuales = p.catalogos_archivos
-            ?.map(
-              (a: any) =>
-                `### DOC: ${a.nombre_archivo} | TEXTO: ${a.texto_extraido || "No disponible"} | LINK: ${a.url}`,
-            )
-            .join("\n");
-          return `EQUIPO: ${p.nombre}\nPRECIO: ${p.precio}\nSTOCK: ${p.stock}\nINFO: ${p.descripcion_tecnica}\n${manuales}`;
+        ?.map((p) => {
+          // Buscamos el link solo si coincide con este producto y existe en storage
+          const linkProducto = archivos?.find(
+            (a) => a.producto_id === (p as any).id && urlsValidas.has(a.url),
+          )?.url;
+
+          return `
+PRODUCTO: ${p.nombre}
+PRECIO: ${p.precio || "Consultar"}
+INFO: ${p.descripcion_tecnica}
+LINK: ${linkProducto || "SIN_CATALOGO_DISPONIBLE"}
+-------------------`;
         })
-        .join("\n\n") ?? "";
+        .join("\n") || "";
 
-    if (!agenteActivo) {
-      // Intentar con múltiples modelos en orden de preferencia
-      const models = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-70b-versatile",
-        "llama-3.1-8b-instant",
-      ];
+    const instruccionesDia =
+      ordenesRes.data?.map((o) => `- ${o.contenido}`).join("\n") || "";
 
-      for (const modelName of models) {
-        try {
-          const responseOff = await groq.chat.completions.create({
-            messages: [
-              { role: "system", content: AGENTE_PROMPTS.MODO_OFF },
-              { role: "user", content: userMessage },
-            ],
-            model: modelName,
-          });
-          return responseOff.choices[0].message.content;
-        } catch (modelError) {
-          console.warn(
-            `Modelo ${modelName} falló, intentando siguiente:`,
-            modelError,
-          );
+    if (!agenteActivo) return AGENTE_PROMPTS.MODO_OFF;
 
-          // Si es rate limit, esperar y reintentar una vez
-          if (
-            modelError instanceof Error &&
-            modelError.message.includes("rate limit")
-          ) {
-            try {
-              await new Promise((resolve) => setTimeout(resolve, 2000)); // Esperar 2s
-              const retryResponse = await groq.chat.completions.create({
-                messages: [
-                  { role: "system", content: AGENTE_PROMPTS.MODO_OFF },
-                  { role: "user", content: userMessage },
-                ],
-                model: modelName,
-              });
-              return retryResponse.choices[0].message.content;
-            } catch (retryError) {
-              console.warn(`Retry falló para ${modelName}:`, retryError);
-            }
-          }
+    // 4. PROMPT CON REGLAS ANTI-ALUCINACIÓN
+    const systemPrompt = `
+${AGENTE_PROMPTS.VENTAS_TECNICO(conocimiento)}
 
-          continue;
-        }
-      }
-      throw new Error("Todos los modelos fallaron");
-    }
+REGLAS ESTRICTAS:
+- Si el usuario pregunta precio, fijate en la lista. Si dice "Consultar", pedile el contacto.
+- Si un producto dice "SIN_CATALOGO_DISPONIBLE", no pongas ningún link.
+- NO menciones el Fussen si te preguntan por Resina, sé específico.
+- Tu nombre es Asesor de Evolución Dental (NUNCA Dental Boss).
 
-    // Intentar con múltiples modelos en orden de preferencia
-    const models = [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-70b-versatile",
-      "llama-3.1-8b-instant",
-    ];
+ÓRDENES DEL DÍA:
+${instruccionesDia}
+    `.trim();
 
-    for (const modelName of models) {
-      try {
-        // Construir el system prompt dinámico
-        const dynamicSystemPrompt = `
-${finalPrompt}
+    const response = await groq.chat.completions.create({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.1, // Mínima creatividad para evitar inventos
+    });
 
-${
-  conocimiento
-    ? `
-CONOCIMIENTO DISPONIBLE:
-${conocimiento}`
-    : ""
-}
-        `.trim();
-
-        const response = await groq.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content: dynamicSystemPrompt,
-            },
-            { role: "user", content: userMessage },
-          ],
-          model: modelName,
-          temperature: 0.2,
-        });
-        return response.choices[0].message.content;
-      } catch (modelError) {
-        console.warn(
-          `Modelo ${modelName} falló, intentando siguiente:`,
-          modelError,
-        );
-        continue;
-      }
-    }
-    throw new Error("Todos los modelos fallaron");
+    const rawContent = response.choices[0].message.content || "";
+    return await ResponseFormatter.format(rawContent);
   } catch (error) {
-    console.error("Error en Agente:", error);
-
-    // Mejor manejo de errores
-    if (error instanceof Error) {
-      if (error.message.includes("API key")) {
-        return "Error de configuración de la API. Contacte al administrador.";
-      } else if (error.message.includes("rate limit")) {
-        return "Límite de consultas alcanzado. Espere unos segundos e intente nuevamente.";
-      } else if (error.message.includes("Todos los modelos fallaron")) {
-        return "Todos los modelos de IA están temporalmente no disponibles. Intente en unos minutos.";
-      } else if (error.message.includes("network")) {
-        return "Error de conexión. Verifique su internet.";
-      }
-    }
-
-    return "El servicio de IA está temporalmente indisponible. Intente nuevamente en unos momentos.";
+    console.error("Error:", error);
+    return "Che, se me complicó la conexión. ¿Me preguntás de nuevo?";
   }
 };
